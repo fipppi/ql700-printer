@@ -991,6 +991,7 @@ class Editor {
       case 'zoom-out': return this.setZoom(this.zoom / 1.25);
       case 'zoom-fit': return this.fit();
       case 'about': return $('about').classList.remove('hidden');
+      case 'home': location.href = './'; return;
     }
   }
 

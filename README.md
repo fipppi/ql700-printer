@@ -1,4 +1,4 @@
-﻿# QL-700 Label Studio
+# QL-700 Label Studio
 
 ## Description
 
@@ -24,7 +24,7 @@ No build step, no `npm install` â€” it's plain HTML/CSS/ES modules.
 
 ### Hosted (no install)
 
-The app is deployed to GitHub Pages: **https://fipppi.github.io/ql700-printer/**
+The app is deployed to GitHub Pages: **https://fipppi.github.io/ql700-printer/** — that's the landing page (intro, setup guide, driver revert, FAQ); the editor itself is at **/app.html**.
 
 Open it in Chrome or Edge. It's served over HTTPS (which WebUSB requires) and a service worker caches everything, so it keeps working offline after the first visit. Chrome's address-bar "Install" button adds it as a standalone app. Every push to `main` redeploys via `.github/workflows/pages.yml`.
 
@@ -36,7 +36,7 @@ From the project folder:
 python serve.py            # http://localhost:8000  (or: python serve.py 8765)
 ```
 
-Then open **http://localhost:8000** in Chrome or Edge.
+Then open **http://localhost:8000** in Chrome or Edge (landing page; the editor is **http://localhost:8000/app.html**).
 
 > `serve.py` is a thin wrapper over `python -m http.server` that disables caching, so edits to the `.js` modules show up on a plain reload. Any static file server works instead (e.g. `python -m http.server 8000 --bind 127.0.0.1`, `npx serve`, VS Code Live Server) â€” it just has to be `http://localhost` or HTTPS, not a `file://` path â€” but then you'll need a hard reload (Ctrl+Shift+R) after code changes.
 
@@ -88,7 +88,9 @@ A **red flashing LED** almost always means the selected tape doesn't match the l
 ## Project layout
 
 ```
-index.html        UI shell (menu bar, toolbar, panels, modals)
+index.html        landing page: intro, how-to, printer setup, driver revert, FAQ
+landing.css       landing page styles
+app.html          editor UI shell (menu bar, toolbar, panels, modals)
 style.css         styles
 js/printer.js     WebUSB driver + ESC/P raster encoder + media table
 js/label.js       document model, element rendering, dithering, serialization, templates

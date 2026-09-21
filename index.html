@@ -3,252 +3,210 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>QL-700 Label Studio</title>
+  <title>QL-700 Label Studio — print Brother QL-700 labels from your browser</title>
+  <meta name="description" content="A free, browser-based label designer and printer for the Brother QL-700. Drives the printer over WebUSB — no Brother drivers or P-touch software. Runs entirely on your device." />
   <meta name="theme-color" content="#181b22" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon-192.png" type="image/png" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="landing.css" />
 </head>
 <body>
-  <!-- traditional menu bar -->
-  <nav class="menubar" id="menubar">
-    <div class="menu" data-menu="file">File
-      <div class="dropdown">
-        <button data-action="new-label">New label</button>
-        <button data-action="import">Import…</button>
-        <button data-action="import-pdf">Import shipping PDF…</button>
-        <div class="mdiv"></div>
-        <button data-action="export-label">Export label…</button>
-        <button data-action="export-project">Export project…</button>
-        <div class="mdiv"></div>
-        <button data-action="template">Template data…</button>
-        <button data-action="print-selected">Print selected labels</button>
-      </div>
-    </div>
-    <div class="menu" data-menu="edit">Edit
-      <div class="dropdown">
-        <button data-action="undo">Undo <span class="ks">Ctrl+Z</span></button>
-        <button data-action="redo">Redo <span class="ks">Ctrl+Y</span></button>
-        <div class="mdiv"></div>
-        <button data-action="cut">Cut <span class="ks">Ctrl+X</span></button>
-        <button data-action="copy">Copy <span class="ks">Ctrl+C</span></button>
-        <button data-action="paste">Paste <span class="ks">Ctrl+V</span></button>
-        <button data-action="delete">Delete <span class="ks">Del</span></button>
-      </div>
-    </div>
-    <div class="menu" data-menu="view">View
-      <div class="dropdown">
-        <button data-action="toggle-grid">Toggle grid</button>
-        <button data-action="toggle-snap-grid">Toggle snap to grid</button>
-        <button data-action="toggle-snap-guides">Toggle snap to guides</button>
-        <div class="mdiv"></div>
-        <button data-action="zoom-in">Zoom in</button>
-        <button data-action="zoom-out">Zoom out</button>
-        <button data-action="zoom-fit">Fit</button>
-      </div>
-    </div>
-    <div class="menu" data-menu="about">About
-      <div class="dropdown">
-        <button data-action="about">About QL-700 Label Studio</button>
-      </div>
-    </div>
-    <div class="menubar-spacer"></div>
-    <div class="menubar-conn">
-      <button id="help-btn" class="btn sm">Help</button>
-      <button id="connect" class="btn primary sm">Connect</button>
-      <button id="print" class="btn sm" disabled>Print</button>
-    </div>
-  </nav>
-
-  <header>
-    <div class="toolbar">
-      <select id="media" class="ctl"></select>
-      <select id="orientation" class="ctl">
-        <option value="h">Horizontal</option>
-        <option value="v">Vertical</option>
-      </select>
-      <span class="sep"></span>
-      <button id="add-text" class="ctl">+ Text</button>
-      <button id="add-symbol" class="ctl">+ Symbol</button>
-      <button id="add-image" class="ctl">+ Image</button>
-      <select id="add-shape" class="ctl">
-        <option value="">+ Shape ▾</option>
-        <option value="rect">Rectangle</option>
-        <option value="square">Square</option>
-        <option value="roundrect">Rounded rect</option>
-        <option value="circle">Circle</option>
-      </select>
-      <button id="add-cut" class="ctl">✂ Cut line</button>
-      <button id="tpl-btn" class="ctl accent hidden">▦ Template data</button>
-      <input id="image-file" type="file" accept="image/*" hidden />
-      <input id="import-file" type="file" accept=".json,application/json" hidden />
-      <input id="import-pdf-file" type="file" accept=".pdf,application/pdf" multiple hidden />
-      <span class="sep"></span>
-      <button id="undo" class="ctl icon" title="Undo (Ctrl+Z)" disabled>↶</button>
-      <button id="redo" class="ctl icon" title="Redo (Ctrl+Y)" disabled>↷</button>
-      <span class="sep"></span>
-      <button id="zoom-out" class="ctl icon">−</button>
-      <button id="zoom-fit" class="ctl">Fit</button>
-      <button id="zoom-in" class="ctl icon">+</button>
-    </div>
-    <div class="conn">
-      <span id="dims-badge" class="badge"></span>
-    </div>
+  <header class="top">
+    <a class="brand" href="./"><img src="icons/icon-192.png" alt="" width="28" height="28" /> QL-700 Label Studio</a>
+    <nav class="topnav">
+      <a href="#how">How it works</a>
+      <a href="#setup">Printer setup</a>
+      <a href="#revert">Revert driver</a>
+      <a href="#faq">FAQ</a>
+      <a class="btn primary" href="app.html">Open Label Studio</a>
+    </nav>
   </header>
 
-  <div id="status" class="status info">Ready.</div>
-
   <main>
-    <aside class="filepicker">
-      <div class="fp-head">
-        <span>Labels</span>
-        <button id="new-label" class="mini" title="New label">＋</button>
+    <!-- hero -->
+    <section class="hero">
+      <p class="eyebrow">For the Brother QL-700 · Chrome &amp; Edge</p>
+      <h1>Design and print labels<br />straight from your browser.</h1>
+      <p class="lede">
+        QL-700 Label Studio is a free label designer that talks to your Brother QL-700 over <b>WebUSB</b>.
+        No Brother drivers, no P-touch Editor, nothing to install — it runs entirely on your own device,
+        works offline once loaded, and never sends your labels anywhere.
+      </p>
+      <div class="cta">
+        <a class="btn primary lg" href="app.html">Open Label Studio →</a>
+        <a class="btn lg" href="#setup">Set up the printer first</a>
       </div>
-      <div id="label-list" class="label-list"></div>
-      <button id="print-selected" class="btn small full">Print selected</button>
-    </aside>
+      <p id="browser-note" class="note hidden">
+        ⚠ This browser doesn't support WebUSB. You can still design and export labels, but to <b>print</b> you'll need
+        <b>Google Chrome</b> or <b>Microsoft Edge</b>.
+      </p>
 
-    <section class="stage-wrap">
-      <div id="stage" class="stage">
-        <div class="ruler-corner"></div>
-        <canvas id="ruler-top" class="ruler-top"></canvas>
-        <canvas id="ruler-left" class="ruler-left"></canvas>
-        <div id="surface" class="surface">
-          <canvas id="label" class="label-canvas"></canvas>
-          <canvas id="overlay" class="overlay-canvas"></canvas>
+      <figure class="preview" aria-label="Example label as printed">
+        <div class="label-strip">
+          <div class="seg">
+            <span class="head">SEND FROM</span>
+            <span>Jane Citizen</span><span>12 Example Street</span><span>Brunswick, VIC, 3056</span><span>Australia</span>
+          </div>
+          <div class="cutline" title="cut line"></div>
+          <div class="seg">
+            <span class="head">DELIVER TO</span>
+            <span>Sam Buyer</span><span>Parcel Collect 90</span><span>Kambah, ACT, 2902</span><span>Australia</span>
+          </div>
         </div>
-      </div>
-      <div id="readout" class="readout"></div>
+        <figcaption>A 62 mm continuous label with a cut line — the printer prints, cuts, prints, cuts.</figcaption>
+      </figure>
     </section>
 
-    <aside class="sidebar">
-      <div class="panel">
-        <h2>View</h2>
-        <div class="view-controls">
-          <label class="chk"><input id="grid-on" type="checkbox" checked> Grid</label>
-          <label class="vf">Size (mm)<input id="grid-size" type="number" min="1" max="30" step="0.5" value="5"></label>
-          <label class="chk"><input id="snap-grid" type="checkbox" checked> Snap to grid</label>
-          <label class="chk"><input id="snap-guides" type="checkbox" checked> Snap to guides</label>
-          <div class="hint">Drag from the top/left ruler to add a guide. Select a guide and press Delete to remove it.</div>
+    <!-- why -->
+    <section class="band">
+      <h2>Why this exists</h2>
+      <p>
+        The QL-700 ships with <i>P-touch Editor Lite</i>, a tiny program that lives on the printer's built-in USB drive. It's
+        Windows-only, clunky, and can't do variable data, batch runs or multi-segment labels. Brother's full software is
+        heavyweight and still needs their driver stack. Label Studio replaces both with a single web page: a layered
+        editor and a raster driver that speaks the printer's native ESC/P protocol directly over USB.
+      </p>
+      <div class="grid three">
+        <div class="card"><h3>Nothing to install</h3><p>Open the link, plug in the printer, print. On Windows you swap one USB driver, once (see setup below).</p></div>
+        <div class="card"><h3>Private &amp; offline</h3><p>Everything runs in the browser tab. Your labels stay on your machine, and the app keeps working with no internet after the first visit.</p></div>
+        <div class="card"><h3>Made for real jobs</h3><p>Cut lines, templates with <code>{{variables}}</code>, batch printing from a data table, and one-click import of eBay shipping PDFs.</p></div>
+      </div>
+    </section>
+
+    <!-- how it works -->
+    <section id="how" class="band">
+      <h2>How it works</h2>
+      <ol class="steps">
+        <li>
+          <h3>Pick your tape</h3>
+          <p>Top-left dropdown. Match the roll that's loaded: <b>62 mm</b> or <b>29 mm continuous</b> (you set the length by dragging the label's edge), or a fixed-size <b>die-cut</b> label such as 29×90 mm address or 62×100 mm shipping.</p>
+        </li>
+        <li>
+          <h3>Design the label</h3>
+          <p>Add <b>text</b>, <b>symbols</b>, <b>images</b> (auto-dithered to black &amp; white) and <b>shapes</b>. Drag to move, use the handles to scale or stretch, press <kbd>R</kbd> to rotate. Layers, rulers, grid, guides and snapping work like a normal design tool. <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes.</p>
+        </li>
+        <li>
+          <h3>Split it with cut lines (optional)</h3>
+          <p>Click <b>✂ Cut line</b> to divide one design into segments. The printer prints each segment and cuts between them — perfect for a sender + receiver pair, or a run of identical labels.</p>
+        </li>
+        <li>
+          <h3>Connect and print</h3>
+          <p>Click <b>Connect</b> (top-right), choose <b>QL-700</b> in the browser's device picker, then <b>Print</b>. Chrome remembers the printer, so next time it reconnects on its own.</p>
+        </li>
+      </ol>
+
+      <h3 class="sub">Going further</h3>
+      <div class="grid two">
+        <div class="card">
+          <h3>Templates &amp; batch printing</h3>
+          <p>Type <code>{{name}}</code>, <code>{{sku}}</code> — any <code>{{variable}}</code> — into a text element, then open <b>File → Template data…</b>. Fill a row per label (or paste rows in the <b>Free edit</b> box using <code>|</code> between columns) and print them all through the print queue, one at a time or automatically.</p>
+        </div>
+        <div class="card">
+          <h3>Shipping PDFs</h3>
+          <p><b>File → Import shipping PDF…</b> reads the address page of an eBay-style shipping PDF and builds a label with the <b>Send from</b> block, a cut, then the <b>Deliver to</b> block. Select several PDFs at once and print them with <b>Print selected labels</b>.</p>
+        </div>
+        <div class="card">
+          <h3>Multiple labels &amp; files</h3>
+          <p>The left panel holds as many labels as you like. Everything auto-saves in your browser. <b>Export</b> a label or the whole project as JSON to back it up or move it to another machine, and <b>Import</b> it back.</p>
+        </div>
+        <div class="card">
+          <h3>Install it as an app</h3>
+          <p>In Chrome, click the <b>Install</b> icon in the address bar to get a standalone window and a Start-menu / dock entry. It works offline.</p>
         </div>
       </div>
-      <div class="panel">
-        <h2>Layers</h2>
-        <div id="layers" class="layers"></div>
+    </section>
+
+    <!-- setup -->
+    <section id="setup" class="band">
+      <h2>Setting up the printer</h2>
+      <p class="muted">One-time. Takes about five minutes on Windows; macOS and Linux usually need only steps 1 and 2.</p>
+
+      <div class="step-block">
+        <h3><span class="num">1</span> Use Chrome or Edge</h3>
+        <p>WebUSB is only available in Chromium browsers — <b>Google Chrome</b>, <b>Microsoft Edge</b>, Brave, Opera, etc. Firefox and Safari can design labels but cannot print.</p>
       </div>
-      <div class="panel grow">
-        <h2>Properties</h2>
-        <div id="props" class="props"></div>
+
+      <div class="step-block">
+        <h3><span class="num">2</span> Turn off “Editor Lite” mode on the printer</h3>
+        <p>The QL-700 has an <b>Editor Lite</b> button with a green LED. While it's lit, the printer pretends to be a USB flash drive and can't be driven. <b>Hold the button for about one second until the green LED goes out.</b> The printer remembers this setting.</p>
       </div>
-    </aside>
+
+      <div class="step-block">
+        <h3><span class="num">3</span> Windows only: install the WinUSB driver with Zadig</h3>
+        <p>Windows attaches Brother's printer driver to the QL-700, which blocks the browser from talking to it. Zadig swaps it for the generic <b>WinUSB</b> driver:</p>
+        <ol>
+          <li>Download <b>Zadig</b> from <a href="https://zadig.akeo.ie" target="_blank" rel="noopener">zadig.akeo.ie</a> and run it (no installer).</li>
+          <li>Menu <b>Options → List All Devices</b>.</li>
+          <li>In the dropdown pick <b>QL-700</b>. Check the USB ID reads <code>04F9 2042</code>. If it reads <code>2049</code> the printer is still in Editor Lite mode — go back to step 2.</li>
+          <li>Make sure the target driver (right-hand box) says <b>WinUSB</b>, then click <b>Replace Driver</b>.</li>
+          <li>Unplug the USB cable and plug it back in.</li>
+        </ol>
+        <p class="warn">⚠ Pick <b>QL-700</b> in Zadig and nothing else — replacing the driver of a different device can break it. This also means Brother's own software won't print until you <a href="#revert">revert the driver</a>.</p>
+      </div>
+
+      <div class="step-block">
+        <h3><span class="num">4</span> Connect</h3>
+        <p><a href="app.html">Open Label Studio</a>, click <b>Connect</b> in the top-right and choose <b>QL-700</b>. The status line turns green with the printer's name and <b>Print</b> lights up. Load a roll, pick the matching tape in the dropdown, and print a test label.</p>
+      </div>
+    </section>
+
+    <!-- revert -->
+    <section id="revert" class="band">
+      <h2>Going back to Brother's driver</h2>
+      <p>If you want to use P-touch Editor or Brother's printer driver again, put the original driver back. The two can't be active at the same time, but switching either way is a few clicks.</p>
+      <ol>
+        <li>Unplug the printer, then plug it back in so it's listed.</li>
+        <li>Open <b>Device Manager</b> (right-click Start → Device Manager).</li>
+        <li>Expand <b>Universal Serial Bus devices</b> and find <b>QL-700</b>.</li>
+        <li>Right-click it → <b>Uninstall device</b>. Tick <b>“Attempt to remove the driver for this device”</b> (older Windows: “Delete the driver software”), then Uninstall.</li>
+        <li>Unplug and replug the printer. Windows will either restore Brother's driver automatically or leave it under “Other devices”.</li>
+        <li>If it's not restored, re-run Brother's installer from <a href="https://support.brother.com" target="_blank" rel="noopener">support.brother.com</a> (search “QL-700 full driver &amp; software package”).</li>
+      </ol>
+      <p class="muted">To use Label Studio again later, just repeat the Zadig step. Editor Lite mode is unaffected by any of this.</p>
+    </section>
+
+    <!-- faq -->
+    <section id="faq" class="band">
+      <h2>Troubleshooting</h2>
+      <details>
+        <summary>The QL-700 doesn't appear in the browser's device picker</summary>
+        <p>In order: (1) the Editor Lite LED must be off; (2) on Windows the WinUSB driver must be installed via Zadig; (3) try a different USB port or cable — some hubs drop WebUSB devices; (4) close any Brother software that may be holding the printer open.</p>
+      </details>
+      <details>
+        <summary>The printer's LED flashes red</summary>
+        <p>Almost always the tape you selected in the app doesn't match the roll that's loaded — or the roll is out / the cover is open. Pick the matching size and try again. A press of the cut button clears the error.</p>
+      </details>
+      <details>
+        <summary>Zadig shows USB ID 04F9 2049 instead of 2042</summary>
+        <p><code>2049</code> is the Editor Lite “mass storage” personality. Hold the Editor Lite button until its LED turns off, replug the printer, and refresh Zadig's device list.</p>
+      </details>
+      <details>
+        <summary>Text looks jagged or images look speckled</summary>
+        <p>The QL-700 is a 300 dpi one-bit thermal printer: every dot is either black or white. Images are converted with Floyd–Steinberg dithering, which looks speckled up close but reads correctly at arm's length. For crisp results use large bold text, and avoid thin lines below about 2 dots.</p>
+      </details>
+      <details>
+        <summary>My labels disappeared after switching computers or browsers</summary>
+        <p>The workspace is saved in the browser's local storage, which is per browser and per site address. Use <b>File → Export project…</b> to save it as JSON and <b>Import…</b> on the other machine.</p>
+      </details>
+      <details>
+        <summary>Does it work with other Brother QL printers?</summary>
+        <p>It's written and tested for the QL-700 (300 dpi, 62 mm head). The raster protocol is shared across the QL family, so close relatives like the QL-500/550/570 may work with the same driver swap, but they're untested.</p>
+      </details>
+    </section>
+
+    <section class="band final">
+      <h2>Ready?</h2>
+      <a class="btn primary lg" href="app.html">Open Label Studio →</a>
+    </section>
   </main>
 
-  <!-- template data modal -->
-  <div id="modal" class="modal hidden">
-    <div class="modal-box">
-      <div class="modal-head"><span>Template data</span><button id="modal-close" class="mini">×</button></div>
-      <div class="modal-body">
-        <div id="tpl-info" class="tpl-info"></div>
-        <div class="tpl-table-wrap"><table id="tpl-table"></table></div>
-        <textarea id="tpl-text" class="tpl-text hidden" spellcheck="false"></textarea>
-      </div>
-      <div class="modal-foot">
-        <button id="tpl-add-row" class="ctl">+ Row</button>
-        <button id="tpl-free" class="ctl">Free edit</button>
-        <span class="menubar-spacer"></span>
-        <button id="tpl-print" class="btn primary">Print rows…</button>
-      </div>
-    </div>
-  </div>
+  <footer class="foot">
+    <span>QL-700 Label Studio — open source, runs entirely on your device.</span>
+    <a href="https://github.com/fipppi/ql700-printer" target="_blank" rel="noopener">Source on GitHub</a>
+  </footer>
 
-  <!-- print queue modal -->
-  <div id="printq" class="modal hidden">
-    <div class="modal-box">
-      <div class="modal-head"><span>Print queue</span><button id="pq-close" class="mini">×</button></div>
-      <div class="modal-body">
-        <div id="pq-progress" class="pq-progress"></div>
-        <div id="pq-preview-wrap" class="pq-preview-wrap"><img id="pq-preview" class="pq-preview" alt="label preview"></div>
-        <div id="pq-list" class="pq-list"></div>
-      </div>
-      <div class="modal-foot">
-        <button id="pq-next" class="btn primary">Print next ▶</button>
-        <button id="pq-auto" class="ctl">Auto print all</button>
-        <span class="menubar-spacer"></span>
-        <button id="pq-cancel" class="ctl">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- help modal -->
-  <div id="help" class="modal hidden">
-    <div class="modal-box">
-      <div class="modal-head"><span>How to set up &amp; print</span><button id="help-close" class="mini">×</button></div>
-      <div class="modal-body help-body">
-        <h3>1. Requirements</h3>
-        <ul>
-          <li>Use <b>Google Chrome</b> or <b>Microsoft Edge</b> — WebUSB isn't supported in Firefox or Safari.</li>
-          <li>Open this page over <code>http://localhost</code> or HTTPS (not a <code>file://</code> path).</li>
-          <li>Windows: you'll install a generic driver once with Zadig (below). Mac/Linux usually work without it.</li>
-        </ul>
-
-        <h3>2. Take the printer out of “Editor Lite” mode</h3>
-        <p>The QL-700 has an <b>Editor Lite</b> button with a green LED. While it's lit, the printer only shows up as a USB flash drive and can't be driven. <b>Press and hold the Editor Lite button (about 1 second) until the green LED turns off.</b></p>
-
-        <h3>3. Install the WinUSB driver with Zadig (Windows only)</h3>
-        <p>Chrome can only reach the printer through the generic <b>WinUSB</b> driver, so you swap Brother's driver once:</p>
-        <ol>
-          <li>Download <b>Zadig</b> from <a href="https://zadig.akeo.ie" target="_blank" rel="noopener">zadig.akeo.ie</a> and run it.</li>
-          <li>Menu → <b>Options → List All Devices</b>.</li>
-          <li>In the dropdown, select <b>QL-700</b>. Confirm the USB ID reads <code>04F9&nbsp;2042</code> — <b>not</b> <code>2049</code> (that's the flash-drive mode from step 2; finish step 2 first).</li>
-          <li>Set the target driver on the right to <b>WinUSB</b>, then click <b>Replace Driver</b> (or Install Driver).</li>
-          <li>Unplug and replug the printer's USB cable.</li>
-        </ol>
-        <p class="warn">⚠ This replaces Brother's driver, so Brother's own P-touch / QL software won't print until you revert it (see step 6). Be careful to pick <b>QL-700</b> in Zadig and nothing else.</p>
-
-        <h3>4. Connect</h3>
-        <p>Click <b>Connect</b> (top-right) and choose <b>QL-700</b> in the browser's device picker. The button becomes <b>Reconnect</b> once linked, and it reconnects automatically next time.</p>
-
-        <h3>5. Choose your label &amp; print</h3>
-        <ul>
-          <li>Pick the tape in the top-left dropdown to match the roll you loaded: <b>62mm / 29mm continuous</b>, or a <b>die-cut</b> size such as <b>29×90mm address labels</b>.</li>
-          <li>Design your label, then click <b>Print</b>.</li>
-          <li>A <b>red flashing LED</b> almost always means the tape you selected doesn't match the roll that's loaded — pick the matching size.</li>
-        </ul>
-
-        <h3>6. Going back to Brother's software</h3>
-        <p>Open <b>Device Manager</b>, find <b>QL-700</b> under “Universal Serial Bus devices”, right-click → <b>Uninstall device</b> (tick “Delete the driver software”), then re-run Brother's installer to restore their driver.</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- unsupported browser warning -->
-  <div id="browser-warn" class="modal hidden">
-    <div class="modal-box sm">
-      <div class="modal-head"><span>Use Chrome to print</span><button id="bw-close" class="mini">×</button></div>
-      <div class="modal-body help-body">
-        <p>This app connects to the QL-700 with <b>WebUSB</b>, which only works in <b>Google Chrome</b>, <b>Microsoft Edge</b>, or another Chromium-based browser.</p>
-        <p>Your current browser doesn't support it, so <b>printing won't work here</b>. Please open this page in <b>Google Chrome</b> to connect and print.</p>
-        <p class="muted">You can still design and export labels in this browser — only printing is unavailable.</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- about modal -->
-  <div id="about" class="modal hidden">
-    <div class="modal-box sm">
-      <div class="modal-head"><span>About</span><button id="about-close" class="mini">×</button></div>
-      <div class="modal-body about-body">
-        <h3>QL-700 Label Studio</h3>
-        <p>A WebUSB label designer for the Brother QL-700. Design multi-element labels, use templates with variable data, and print with cut lines — no drivers beyond WinUSB.</p>
-        <p class="muted">Files are saved as versioned JSON (format <code>ql700-label</code> v1). Your workspace is auto-saved in this browser.</p>
-      </div>
-    </div>
-  </div>
-
-  <script type="module" src="js/app.js"></script>
   <script>
-    // Offline support (GitHub Pages / any HTTPS host). Skipped on localhost so a
-    // dev server's edits aren't masked by the cache.
+    if (!('usb' in navigator)) document.getElementById('browser-note').classList.remove('hidden');
     if ('serviceWorker' in navigator && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
       navigator.serviceWorker.register('./sw.js').catch(() => {});
     }

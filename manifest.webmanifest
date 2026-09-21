@@ -2,7 +2,7 @@
   "name": "QL-700 Label Studio",
   "short_name": "QL-700 Labels",
   "description": "Browser-based label designer and printer for the Brother QL-700 over WebUSB.",
-  "start_url": "./",
+  "start_url": "./app.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#181b22",

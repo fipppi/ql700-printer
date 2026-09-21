@@ -2,10 +2,12 @@
 // same-origin requests cache-first while refreshing them in the background
 // (stale-while-revalidate), so an update lands on the *next* load.
 // Bump CACHE whenever the precache list changes so stale entries are dropped.
-const CACHE = 'ql700-v1';
+const CACHE = 'ql700-v2';
 const SHELL = [
   './',
   './index.html',
+  './landing.css',
+  './app.html',
   './style.css',
   './manifest.webmanifest',
   './js/app.js',
