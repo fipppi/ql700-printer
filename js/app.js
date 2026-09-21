@@ -105,6 +105,8 @@ class Editor {
     this.selCut = null;         // selected cut id
     this.selGuide = null;       // selected guide id
     this.view = { grid: true, gridMm: 5, snapGrid: true, snapGuides: true };
+    this.realSize = false;      // 1:1 toggle: label shown at its printed size (CSS 96 px/in)
+    this._zoomBeforeReal = 1;   // zoom to restore when the toggle is switched off
     this._pending = null;       // open transaction snapshot (coalesced edits)
     this._dragMoved = false;
     this.HIST_MAX = 60;
@@ -228,7 +230,8 @@ class Editor {
     $('image-file').addEventListener('change', (e) => this.loadImage(e.target.files[0]));
     $('zoom-in').addEventListener('click', () => this.setZoom(this.zoom * 1.25));
     $('zoom-out').addEventListener('click', () => this.setZoom(this.zoom / 1.25));
-    $('zoom-fit').addEventListener('click', () => this.fit());
+    $('zoom-fit').addEventListener('click', () => this.fit(true));
+    $('real-size').addEventListener('click', () => this.toggleRealSize());
 
     const s = this.stage;
     s.addEventListener('pointerdown', (e) => this.onDown(e));
@@ -361,7 +364,7 @@ class Editor {
   }
   // tick marks on the View menu's on/off items
   syncViewMenu() {
-    const state = { grid: this.view.grid, snapGrid: this.view.snapGrid, snapGuides: this.view.snapGuides, dark: this.theme === 'dark' };
+    const state = { grid: this.view.grid, snapGrid: this.view.snapGrid, snapGuides: this.view.snapGuides, dark: this.theme === 'dark', realSize: this.realSize };
     document.querySelectorAll('#menubar button[data-check]').forEach((b) => b.classList.toggle('on', !!state[b.dataset.check]));
   }
   onConnected(info) {
@@ -374,15 +377,27 @@ class Editor {
   get scale() { return this.zoom; }
   stageInner() { const r = this.stage.getBoundingClientRect(); return { w: r.width - RULER, h: r.height - RULER, left: r.left, top: r.top }; }
 
-  fit() {
+  // Fit the label to the window. Internal callers (label switch, resize…) leave a
+  // real-size view alone; the Fit button / menu pass explicit=true to leave real size.
+  fit(explicit = false) {
+    if (this.realSize && !explicit) return this.render();
+    this.realSize = false;
     const si = this.stageInner();
     const pad = 24;
     const sx = (si.w - pad) / this.doc.canvasW();
     const sy = (si.h - pad) / this.doc.canvasH();
     this.zoom = Math.max(0.05, Math.min(sx, sy));
-    this.render();
+    this.syncZoomUI(); this.render();
   }
-  setZoom(z) { this.zoom = Math.max(0.05, Math.min(8, z)); this.render(); }
+  setZoom(z) { this.realSize = false; this.zoom = Math.max(0.05, Math.min(8, z)); this.syncZoomUI(); this.render(); }
+  // 1:1 — one printed millimetre ≈ one millimetre on screen (assumes the CSS 96 px/in reference;
+  // real displays vary a little). Switching off restores the previous zoom.
+  toggleRealSize() {
+    if (this.realSize) { this.realSize = false; this.zoom = this._zoomBeforeReal; }
+    else { this._zoomBeforeReal = this.zoom; this.realSize = true; this.zoom = 96 / 300; }
+    this.syncZoomUI(); this.render();
+  }
+  syncZoomUI() { $('real-size').classList.toggle('on', this.realSize); this.syncViewMenu(); }
 
   clientToDot(e) {
     const r = this.stage.getBoundingClientRect();
@@ -1018,7 +1033,7 @@ class Editor {
     const wMm = m.widthMm; // physical tape width (not the slightly-smaller printable area)
     const cutInfo = this.doc.cuts.length ? ` · ${this.doc.cuts.length} cut${this.doc.cuts.length > 1 ? 's' : ''} → ${this.doc.segments().length} pieces` : '';
     const lenLabel = m.kind === 'diecut' ? `${m.lengthMm} mm (fixed die-cut)` : `${longMm} mm long`;
-    $('readout').textContent = `${m.label} · ${lenLabel} · zoom ${Math.round(this.zoom * 100)}%${cutInfo}`;
+    $('readout').textContent = `${m.label} · ${lenLabel} · zoom ${Math.round(this.zoom * 100)}%${this.realSize ? ' (real size)' : ''}${cutInfo}`;
     $('dims-badge').textContent = this.doc.orientation === 'h'
       ? `${longMm} × ${wMm} mm` : `${wMm} × ${longMm} mm`;
   }
@@ -1176,7 +1191,8 @@ class Editor {
       case 'toggle-theme': return this.setTheme(this.theme === 'dark' ? 'light' : 'dark');
       case 'zoom-in': return this.setZoom(this.zoom * 1.25);
       case 'zoom-out': return this.setZoom(this.zoom / 1.25);
-      case 'zoom-fit': return this.fit();
+      case 'zoom-fit': return this.fit(true);
+      case 'toggle-real-size': return this.toggleRealSize();
       case 'help': return $('help').classList.remove('hidden');
       case 'roll': return this.openRollPicker();
       case 'about': return $('about').classList.remove('hidden');
