@@ -425,7 +425,7 @@ function deserializeEl(o, onImageLoad) {
   if (o.type === 'image') {
     const img = new Image();
     const el = { id: newId(), type: 'image', name: o.name || 'Image', visible: o.visible !== false, x: o.x, y: o.y, rotation: o.rotation || 0, wDots: o.wDots, hDots: o.hDots, src: img, dataURL: o.dataURL, _dither: null, _dW: 0, _dH: 0 };
-    img.onload = () => { onImageLoad && onImageLoad(); };
+    img.onload = () => { el._dither = null; onImageLoad && onImageLoad(); }; // drop any dither cached from before decode (would stay blank)
     img.src = o.dataURL || '';
     return el;
   }

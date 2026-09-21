@@ -1305,6 +1305,7 @@ function safeName(s) { return String(s || 'label').replace(/[^\w.-]+/g, '_').sli
 let editor;
 document.addEventListener('DOMContentLoaded', () => {
   editor = new Editor();
+  window.ql700 = editor; // debug / automation handle
   editor.renderPanels();
   // re-fit after layout settles so the first paint is never slightly off
   requestAnimationFrame(() => editor.fit());

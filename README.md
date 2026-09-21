@@ -90,6 +90,7 @@ A **red flashing LED** almost always means the selected tape doesn't match the l
 ```
 index.html        landing page: intro, how-to, printer setup, driver revert, FAQ
 landing.css       landing page styles
+img/              screenshots used by the landing page
 app.html          editor UI shell (menu bar, toolbar, panels, modals)
 style.css         styles
 js/printer.js     WebUSB driver + ESC/P raster encoder + media table

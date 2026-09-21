@@ -2,7 +2,7 @@
 // same-origin requests cache-first while refreshing them in the background
 // (stale-while-revalidate), so an update lands on the *next* load.
 // Bump CACHE whenever the precache list changes so stale entries are dropped.
-const CACHE = 'ql700-v2';
+const CACHE = 'ql700-v3';
 const SHELL = [
   './',
   './index.html',
@@ -16,6 +16,14 @@ const SHELL = [
   './js/pdfimport.js',
   './js/vendor/pdf.min.js',
   './js/vendor/pdf.worker.min.js',
+  './img/example-label.png',
+  './img/editor.png',
+  './img/toolbar.png',
+  './img/canvas.png',
+  './img/connect.png',
+  './img/template.png',
+  './img/queue.png',
+  './img/shipping.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
 ];
