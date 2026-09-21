@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QL-700 Label Studio</title>
+  <meta name="theme-color" content="#181b22" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon-192.png" type="image/png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- traditional menu bar -->
+  <nav class="menubar" id="menubar">
+    <div class="menu" data-menu="file">File
+      <div class="dropdown">
+        <button data-action="new-label">New label</button>
+        <button data-action="import">Import…</button>
+        <button data-action="import-pdf">Import shipping PDF…</button>
+        <div class="mdiv"></div>
+        <button data-action="export-label">Export label…</button>
+        <button data-action="export-project">Export project…</button>
+        <div class="mdiv"></div>
+        <button data-action="template">Template data…</button>
+        <button data-action="print-selected">Print selected labels</button>
+      </div>
+    </div>
+    <div class="menu" data-menu="edit">Edit
+      <div class="dropdown">
+        <button data-action="undo">Undo <span class="ks">Ctrl+Z</span></button>
+        <button data-action="redo">Redo <span class="ks">Ctrl+Y</span></button>
+        <div class="mdiv"></div>
+        <button data-action="cut">Cut <span class="ks">Ctrl+X</span></button>
+        <button data-action="copy">Copy <span class="ks">Ctrl+C</span></button>
+        <button data-action="paste">Paste <span class="ks">Ctrl+V</span></button>
+        <button data-action="delete">Delete <span class="ks">Del</span></button>
+      </div>
+    </div>
+    <div class="menu" data-menu="view">View
+      <div class="dropdown">
+        <button data-action="toggle-grid">Toggle grid</button>
+        <button data-action="toggle-snap-grid">Toggle snap to grid</button>
+        <button data-action="toggle-snap-guides">Toggle snap to guides</button>
+        <div class="mdiv"></div>
+        <button data-action="zoom-in">Zoom in</button>
+        <button data-action="zoom-out">Zoom out</button>
+        <button data-action="zoom-fit">Fit</button>
+      </div>
+    </div>
+    <div class="menu" data-menu="about">About
+      <div class="dropdown">
+        <button data-action="about">About QL-700 Label Studio</button>
+      </div>
+    </div>
+    <div class="menubar-spacer"></div>
+    <div class="menubar-conn">
+      <button id="help-btn" class="btn sm">Help</button>
+      <button id="connect" class="btn primary sm">Connect</button>
+      <button id="print" class="btn sm" disabled>Print</button>
+    </div>
+  </nav>
+
+  <header>
+    <div class="toolbar">
+      <select id="media" class="ctl"></select>
+      <select id="orientation" class="ctl">
+        <option value="h">Horizontal</option>
+        <option value="v">Vertical</option>
+      </select>
+      <span class="sep"></span>
+      <button id="add-text" class="ctl">+ Text</button>
+      <button id="add-symbol" class="ctl">+ Symbol</button>
+      <button id="add-image" class="ctl">+ Image</button>
+      <select id="add-shape" class="ctl">
+        <option value="">+ Shape ▾</option>
+        <option value="rect">Rectangle</option>
+        <option value="square">Square</option>
+        <option value="roundrect">Rounded rect</option>
+        <option value="circle">Circle</option>
+      </select>
+      <button id="add-cut" class="ctl">✂ Cut line</button>
+      <button id="tpl-btn" class="ctl accent hidden">▦ Template data</button>
+      <input id="image-file" type="file" accept="image/*" hidden />
+      <input id="import-file" type="file" accept=".json,application/json" hidden />
+      <input id="import-pdf-file" type="file" accept=".pdf,application/pdf" multiple hidden />
+      <span class="sep"></span>
+      <button id="undo" class="ctl icon" title="Undo (Ctrl+Z)" disabled>↶</button>
+      <button id="redo" class="ctl icon" title="Redo (Ctrl+Y)" disabled>↷</button>
+      <span class="sep"></span>
+      <button id="zoom-out" class="ctl icon">−</button>
+      <button id="zoom-fit" class="ctl">Fit</button>
+      <button id="zoom-in" class="ctl icon">+</button>
+    </div>
+    <div class="conn">
+      <span id="dims-badge" class="badge"></span>
+    </div>
+  </header>
+
+  <div id="status" class="status info">Ready.</div>
+
+  <main>
+    <aside class="filepicker">
+      <div class="fp-head">
+        <span>Labels</span>
+        <button id="new-label" class="mini" title="New label">＋</button>
+      </div>
+      <div id="label-list" class="label-list"></div>
+      <button id="print-selected" class="btn small full">Print selected</button>
+    </aside>
+
+    <section class="stage-wrap">
+      <div id="stage" class="stage">
+        <div class="ruler-corner"></div>
+        <canvas id="ruler-top" class="ruler-top"></canvas>
+        <canvas id="ruler-left" class="ruler-left"></canvas>
+        <div id="surface" class="surface">
+          <canvas id="label" class="label-canvas"></canvas>
+          <canvas id="overlay" class="overlay-canvas"></canvas>
+        </div>
+      </div>
+      <div id="readout" class="readout"></div>
+    </section>
+
+    <aside class="sidebar">
+      <div class="panel">
+        <h2>View</h2>
+        <div class="view-controls">
+          <label class="chk"><input id="grid-on" type="checkbox" checked> Grid</label>
+          <label class="vf">Size (mm)<input id="grid-size" type="number" min="1" max="30" step="0.5" value="5"></label>
+          <label class="chk"><input id="snap-grid" type="checkbox" checked> Snap to grid</label>
+          <label class="chk"><input id="snap-guides" type="checkbox" checked> Snap to guides</label>
+          <div class="hint">Drag from the top/left ruler to add a guide. Select a guide and press Delete to remove it.</div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Layers</h2>
+        <div id="layers" class="layers"></div>
+      </div>
+      <div class="panel grow">
+        <h2>Properties</h2>
+        <div id="props" class="props"></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- template data modal -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-box">
+      <div class="modal-head"><span>Template data</span><button id="modal-close" class="mini">×</button></div>
+      <div class="modal-body">
+        <div id="tpl-info" class="tpl-info"></div>
+        <div class="tpl-table-wrap"><table id="tpl-table"></table></div>
+        <textarea id="tpl-text" class="tpl-text hidden" spellcheck="false"></textarea>
+      </div>
+      <div class="modal-foot">
+        <button id="tpl-add-row" class="ctl">+ Row</button>
+        <button id="tpl-free" class="ctl">Free edit</button>
+        <span class="menubar-spacer"></span>
+        <button id="tpl-print" class="btn primary">Print rows…</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- print queue modal -->
+  <div id="printq" class="modal hidden">
+    <div class="modal-box">
+      <div class="modal-head"><span>Print queue</span><button id="pq-close" class="mini">×</button></div>
+      <div class="modal-body">
+        <div id="pq-progress" class="pq-progress"></div>
+        <div id="pq-preview-wrap" class="pq-preview-wrap"><img id="pq-preview" class="pq-preview" alt="label preview"></div>
+        <div id="pq-list" class="pq-list"></div>
+      </div>
+      <div class="modal-foot">
+        <button id="pq-next" class="btn primary">Print next ▶</button>
+        <button id="pq-auto" class="ctl">Auto print all</button>
+        <span class="menubar-spacer"></span>
+        <button id="pq-cancel" class="ctl">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- help modal -->
+  <div id="help" class="modal hidden">
+    <div class="modal-box">
+      <div class="modal-head"><span>How to set up &amp; print</span><button id="help-close" class="mini">×</button></div>
+      <div class="modal-body help-body">
+        <h3>1. Requirements</h3>
+        <ul>
+          <li>Use <b>Google Chrome</b> or <b>Microsoft Edge</b> — WebUSB isn't supported in Firefox or Safari.</li>
+          <li>Open this page over <code>http://localhost</code> or HTTPS (not a <code>file://</code> path).</li>
+          <li>Windows: you'll install a generic driver once with Zadig (below). Mac/Linux usually work without it.</li>
+        </ul>
+
+        <h3>2. Take the printer out of “Editor Lite” mode</h3>
+        <p>The QL-700 has an <b>Editor Lite</b> button with a green LED. While it's lit, the printer only shows up as a USB flash drive and can't be driven. <b>Press and hold the Editor Lite button (about 1 second) until the green LED turns off.</b></p>
+
+        <h3>3. Install the WinUSB driver with Zadig (Windows only)</h3>
+        <p>Chrome can only reach the printer through the generic <b>WinUSB</b> driver, so you swap Brother's driver once:</p>
+        <ol>
+          <li>Download <b>Zadig</b> from <a href="https://zadig.akeo.ie" target="_blank" rel="noopener">zadig.akeo.ie</a> and run it.</li>
+          <li>Menu → <b>Options → List All Devices</b>.</li>
+          <li>In the dropdown, select <b>QL-700</b>. Confirm the USB ID reads <code>04F9&nbsp;2042</code> — <b>not</b> <code>2049</code> (that's the flash-drive mode from step 2; finish step 2 first).</li>
+          <li>Set the target driver on the right to <b>WinUSB</b>, then click <b>Replace Driver</b> (or Install Driver).</li>
+          <li>Unplug and replug the printer's USB cable.</li>
+        </ol>
+        <p class="warn">⚠ This replaces Brother's driver, so Brother's own P-touch / QL software won't print until you revert it (see step 6). Be careful to pick <b>QL-700</b> in Zadig and nothing else.</p>
+
+        <h3>4. Connect</h3>
+        <p>Click <b>Connect</b> (top-right) and choose <b>QL-700</b> in the browser's device picker. The button becomes <b>Reconnect</b> once linked, and it reconnects automatically next time.</p>
+
+        <h3>5. Choose your label &amp; print</h3>
+        <ul>
+          <li>Pick the tape in the top-left dropdown to match the roll you loaded: <b>62mm / 29mm continuous</b>, or a <b>die-cut</b> size such as <b>29×90mm address labels</b>.</li>
+          <li>Design your label, then click <b>Print</b>.</li>
+          <li>A <b>red flashing LED</b> almost always means the tape you selected doesn't match the roll that's loaded — pick the matching size.</li>
+        </ul>
+
+        <h3>6. Going back to Brother's software</h3>
+        <p>Open <b>Device Manager</b>, find <b>QL-700</b> under “Universal Serial Bus devices”, right-click → <b>Uninstall device</b> (tick “Delete the driver software”), then re-run Brother's installer to restore their driver.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- unsupported browser warning -->
+  <div id="browser-warn" class="modal hidden">
+    <div class="modal-box sm">
+      <div class="modal-head"><span>Use Chrome to print</span><button id="bw-close" class="mini">×</button></div>
+      <div class="modal-body help-body">
+        <p>This app connects to the QL-700 with <b>WebUSB</b>, which only works in <b>Google Chrome</b>, <b>Microsoft Edge</b>, or another Chromium-based browser.</p>
+        <p>Your current browser doesn't support it, so <b>printing won't work here</b>. Please open this page in <b>Google Chrome</b> to connect and print.</p>
+        <p class="muted">You can still design and export labels in this browser — only printing is unavailable.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- about modal -->
+  <div id="about" class="modal hidden">
+    <div class="modal-box sm">
+      <div class="modal-head"><span>About</span><button id="about-close" class="mini">×</button></div>
+      <div class="modal-body about-body">
+        <h3>QL-700 Label Studio</h3>
+        <p>A WebUSB label designer for the Brother QL-700. Design multi-element labels, use templates with variable data, and print with cut lines — no drivers beyond WinUSB.</p>
+        <p class="muted">Files are saved as versioned JSON (format <code>ql700-label</code> v1). Your workspace is auto-saved in this browser.</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+  <script>
+    // Offline support (GitHub Pages / any HTTPS host). Skipped on localhost so a
+    // dev server's edits aren't masked by the cache.
+    if ('serviceWorker' in navigator && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>
