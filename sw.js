@@ -2,7 +2,7 @@
 // same-origin requests cache-first while refreshing them in the background
 // (stale-while-revalidate), so an update lands on the *next* load.
 // Bump CACHE whenever the precache list changes so stale entries are dropped.
-const CACHE = 'ql700-v3';
+const CACHE = 'ql700-v4';
 const SHELL = [
   './',
   './index.html',
@@ -11,11 +11,11 @@ const SHELL = [
   './style.css',
   './manifest.webmanifest',
   './js/app.js',
+  './js/config.js',
   './js/label.js',
   './js/printer.js',
-  './js/pdfimport.js',
-  './js/vendor/pdf.min.js',
-  './js/vendor/pdf.worker.min.js',
+  // pdfimport.js + js/vendor/pdf*.js are only fetched when FEATURES.shippingPdf is on;
+  // they're cached on first use by the fetch handler rather than precached.
   './img/example-label.png',
   './img/editor.png',
   './img/toolbar.png',
@@ -23,7 +23,6 @@ const SHELL = [
   './img/connect.png',
   './img/template.png',
   './img/queue.png',
-  './img/shipping.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
 ];

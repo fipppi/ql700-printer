@@ -4,23 +4,27 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>QL-700 Label Studio</title>
-  <meta name="theme-color" content="#181b22" />
+  <meta name="theme-color" content="#fafafc" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon-192.png" type="image/png" />
+  <script>
+    // Apply the saved theme before the stylesheet paints so there's no flash. Light is the default.
+    try { document.documentElement.dataset.theme = localStorage.getItem('ql700-theme') === 'dark' ? 'dark' : 'light'; } catch (_) {}
+  </script>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <!-- traditional menu bar -->
   <nav class="menubar" id="menubar">
-    <a class="menubar-home" href="./" title="About QL-700 Label Studio, setup guide">⌂ Home</a>
+    <a class="menubar-home" href="./" title="Home page: introduction and printer setup guide">⌂ Home</a>
     <div class="menu" data-menu="file">File
       <div class="dropdown">
         <button data-action="new-label">New label</button>
-        <button data-action="import">Import…</button>
+        <button data-action="import">Import label file…</button>
         <button data-action="import-pdf">Import shipping PDF…</button>
         <div class="mdiv"></div>
-        <button data-action="export-label">Export label…</button>
-        <button data-action="export-project">Export project…</button>
+        <button data-action="export-label">Export this label…</button>
+        <button data-action="export-project">Export all labels…</button>
         <div class="mdiv"></div>
         <button data-action="template">Template data…</button>
         <button data-action="print-selected">Print selected labels</button>
@@ -39,49 +43,55 @@
     </div>
     <div class="menu" data-menu="view">View
       <div class="dropdown">
-        <button data-action="toggle-grid">Toggle grid</button>
-        <button data-action="toggle-snap-grid">Toggle snap to grid</button>
-        <button data-action="toggle-snap-guides">Toggle snap to guides</button>
+        <button data-action="toggle-grid" data-check="grid"><span class="tick">✓</span>Grid</button>
+        <button data-action="toggle-snap-grid" data-check="snapGrid"><span class="tick">✓</span>Snap to grid</button>
+        <button data-action="toggle-snap-guides" data-check="snapGuides"><span class="tick">✓</span>Snap to guides</button>
         <div class="mdiv"></div>
         <button data-action="zoom-in">Zoom in</button>
         <button data-action="zoom-out">Zoom out</button>
-        <button data-action="zoom-fit">Fit</button>
+        <button data-action="zoom-fit">Fit label to window</button>
+        <div class="mdiv"></div>
+        <button data-action="toggle-theme" data-check="dark"><span class="tick">✓</span>Dark theme</button>
       </div>
     </div>
-    <div class="menu" data-menu="about">About
+    <div class="menu" data-menu="about">Help
       <div class="dropdown">
+        <button data-action="help">Printer setup &amp; printing…</button>
+        <button data-action="roll">Choose label roll…</button>
+        <button data-action="home">Home page (full guide)</button>
+        <div class="mdiv"></div>
         <button data-action="about">About QL-700 Label Studio</button>
-        <button data-action="home">Setup guide &amp; intro (home page)</button>
       </div>
     </div>
     <div class="menubar-spacer"></div>
     <div class="menubar-conn">
-      <button id="help-btn" class="btn sm">Help</button>
-      <button id="connect" class="btn primary sm">Connect</button>
-      <button id="print" class="btn sm" disabled>Print</button>
+      <button id="theme-btn" class="mini" title="Switch to dark theme">☾</button>
+      <button id="help-btn" class="btn sm">Setup help</button>
+      <button id="connect" class="btn primary sm" title="Connect to the QL-700 over USB">Connect printer</button>
+      <button id="print" class="btn sm" disabled title="Connect the printer first">Print</button>
     </div>
   </nav>
 
   <header>
     <div class="toolbar">
-      <select id="media" class="ctl"></select>
-      <select id="orientation" class="ctl">
+      <select id="media" class="ctl" title="Tape — choose the roll that's loaded in the printer"></select>
+      <select id="orientation" class="ctl" title="How the label is shown on screen">
         <option value="h">Horizontal</option>
         <option value="v">Vertical</option>
       </select>
       <span class="sep"></span>
-      <button id="add-text" class="ctl">+ Text</button>
-      <button id="add-symbol" class="ctl">+ Symbol</button>
-      <button id="add-image" class="ctl">+ Image</button>
-      <select id="add-shape" class="ctl">
+      <button id="add-text" class="ctl" title="Add a text layer">+ Text</button>
+      <button id="add-symbol" class="ctl" title="Add a symbol (★ ✓ ⚠ …)">+ Symbol</button>
+      <button id="add-image" class="ctl" title="Add an image — it's converted to black &amp; white dots">+ Image</button>
+      <select id="add-shape" class="ctl" title="Add a shape">
         <option value="">+ Shape ▾</option>
         <option value="rect">Rectangle</option>
         <option value="square">Square</option>
-        <option value="roundrect">Rounded rect</option>
+        <option value="roundrect">Rounded rectangle</option>
         <option value="circle">Circle</option>
       </select>
-      <button id="add-cut" class="ctl">✂ Cut line</button>
-      <button id="tpl-btn" class="ctl accent hidden">▦ Template data</button>
+      <button id="add-cut" class="ctl" title="Add a cut line — the printer cuts the label into pieces here">✂ Cut line</button>
+      <button id="tpl-btn" class="ctl accent hidden" title="Fill in the {{variables}} used on this label">▦ Template data</button>
       <input id="image-file" type="file" accept="image/*" hidden />
       <input id="import-file" type="file" accept=".json,application/json" hidden />
       <input id="import-pdf-file" type="file" accept=".pdf,application/pdf" multiple hidden />
@@ -89,12 +99,12 @@
       <button id="undo" class="ctl icon" title="Undo (Ctrl+Z)" disabled>↶</button>
       <button id="redo" class="ctl icon" title="Redo (Ctrl+Y)" disabled>↷</button>
       <span class="sep"></span>
-      <button id="zoom-out" class="ctl icon">−</button>
-      <button id="zoom-fit" class="ctl">Fit</button>
-      <button id="zoom-in" class="ctl icon">+</button>
+      <button id="zoom-out" class="ctl icon" title="Zoom out">−</button>
+      <button id="zoom-fit" class="ctl" title="Fit the label to the window">Fit</button>
+      <button id="zoom-in" class="ctl icon" title="Zoom in">+</button>
     </div>
     <div class="conn">
-      <span id="dims-badge" class="badge"></span>
+      <span id="dims-badge" class="badge" title="Label size: length × tape width"></span>
     </div>
   </header>
 
@@ -107,7 +117,7 @@
         <button id="new-label" class="mini" title="New label">＋</button>
       </div>
       <div id="label-list" class="label-list"></div>
-      <button id="print-selected" class="btn small full">Print selected</button>
+      <button id="print-selected" class="btn small full" title="Print every label ticked above, one after another">Print selected labels</button>
     </aside>
 
     <section class="stage-wrap">
@@ -120,7 +130,10 @@
           <canvas id="overlay" class="overlay-canvas"></canvas>
         </div>
       </div>
-      <div id="readout" class="readout"></div>
+      <div class="readout">
+        <span id="readout"></span>
+        <a class="readout-link" href="https://github.com/fipppi/ql700-printer" target="_blank" rel="noopener" title="Source code, issues and pull requests on GitHub">GitHub ↗</a>
+      </div>
     </section>
 
     <aside class="sidebar">
@@ -128,10 +141,10 @@
         <h2>View</h2>
         <div class="view-controls">
           <label class="chk"><input id="grid-on" type="checkbox" checked> Grid</label>
-          <label class="vf">Size (mm)<input id="grid-size" type="number" min="1" max="30" step="0.5" value="5"></label>
+          <label class="vf">Grid spacing (mm)<input id="grid-size" type="number" min="1" max="30" step="0.5" value="5"></label>
           <label class="chk"><input id="snap-grid" type="checkbox" checked> Snap to grid</label>
           <label class="chk"><input id="snap-guides" type="checkbox" checked> Snap to guides</label>
-          <div class="hint">Drag from the top/left ruler to add a guide. Select a guide and press Delete to remove it.</div>
+          <div class="hint">Drag out of a ruler to add a guide. Select a guide and press Delete to remove it. Guides aren't printed.</div>
         </div>
       </div>
       <div class="panel">
@@ -155,10 +168,10 @@
         <textarea id="tpl-text" class="tpl-text hidden" spellcheck="false"></textarea>
       </div>
       <div class="modal-foot">
-        <button id="tpl-add-row" class="ctl">+ Row</button>
-        <button id="tpl-free" class="ctl">Free edit</button>
+        <button id="tpl-add-row" class="ctl">Add row</button>
+        <button id="tpl-free" class="ctl" title="Paste or type all rows as plain text">Edit as text</button>
         <span class="menubar-spacer"></span>
-        <button id="tpl-print" class="btn primary">Print rows…</button>
+        <button id="tpl-print" class="btn primary">Print ticked rows…</button>
       </div>
     </div>
   </div>
@@ -169,12 +182,12 @@
       <div class="modal-head"><span>Print queue</span><button id="pq-close" class="mini">×</button></div>
       <div class="modal-body">
         <div id="pq-progress" class="pq-progress"></div>
-        <div id="pq-preview-wrap" class="pq-preview-wrap"><img id="pq-preview" class="pq-preview" alt="label preview"></div>
+        <div id="pq-preview-wrap" class="pq-preview-wrap"><img id="pq-preview" class="pq-preview" alt="Preview of the selected label"></div>
         <div id="pq-list" class="pq-list"></div>
       </div>
       <div class="modal-foot">
         <button id="pq-next" class="btn primary">Print next ▶</button>
-        <button id="pq-auto" class="ctl">Auto print all</button>
+        <button id="pq-auto" class="ctl" title="Print every remaining label without stopping">Print all remaining</button>
         <span class="menubar-spacer"></span>
         <button id="pq-cancel" class="ctl">Cancel</button>
       </div>
@@ -184,41 +197,55 @@
   <!-- help modal -->
   <div id="help" class="modal hidden">
     <div class="modal-box">
-      <div class="modal-head"><span>How to set up &amp; print</span><button id="help-close" class="mini">×</button></div>
+      <div class="modal-head"><span>Printer setup &amp; printing</span><button id="help-close" class="mini">×</button></div>
       <div class="modal-body help-body">
-        <h3>1. Requirements</h3>
-        <ul>
-          <li>Use <b>Google Chrome</b> or <b>Microsoft Edge</b> — WebUSB isn't supported in Firefox or Safari.</li>
-          <li>Open this page over HTTPS or <code>http://localhost</code> (not a <code>file://</code> path). The <a href="./">home page</a> has the full illustrated guide.</li>
-          <li>Windows: you'll install a generic driver once with Zadig (below). Mac/Linux usually work without it.</li>
-        </ul>
+        <p class="muted">Setup is a one-time job. The <a href="./">home page</a> has the same steps with screenshots.</p>
 
-        <h3>2. Take the printer out of “Editor Lite” mode</h3>
-        <p>The QL-700 has an <b>Editor Lite</b> button with a green LED. While it's lit, the printer only shows up as a USB flash drive and can't be driven. <b>Press and hold the Editor Lite button (about 1 second) until the green LED turns off.</b></p>
+        <h3>1. Use Chrome or Edge</h3>
+        <p>Printing uses WebUSB, which Firefox and Safari don't support. Open this page over HTTPS or <code>http://localhost</code>, not from a <code>file://</code> path.</p>
 
-        <h3>3. Install the WinUSB driver with Zadig (Windows only)</h3>
-        <p>Chrome can only reach the printer through the generic <b>WinUSB</b> driver, so you swap Brother's driver once:</p>
+        <h3>2. Turn off Editor Lite on the printer</h3>
+        <p>While the green <b>Editor Lite</b> light is on, the printer pretends to be a USB flash drive. <b>Hold the Editor Lite button for about a second until the light goes out.</b></p>
+
+        <h3>3. Windows only: swap the driver with Zadig</h3>
+        <p>Brother's driver blocks the browser, so give the printer the generic <b>WinUSB</b> driver instead. macOS and Linux usually don't need this.</p>
         <ol>
           <li>Download <b>Zadig</b> from <a href="https://zadig.akeo.ie" target="_blank" rel="noopener">zadig.akeo.ie</a> and run it.</li>
-          <li>Menu → <b>Options → List All Devices</b>.</li>
-          <li>In the dropdown, select <b>QL-700</b>. Confirm the USB ID reads <code>04F9&nbsp;2042</code> — <b>not</b> <code>2049</code> (that's the flash-drive mode from step 2; finish step 2 first).</li>
-          <li>Set the target driver on the right to <b>WinUSB</b>, then click <b>Replace Driver</b> (or Install Driver).</li>
-          <li>Unplug and replug the printer's USB cable.</li>
+          <li>Choose <b>Options → List All Devices</b>.</li>
+          <li>Select <b>QL-700</b> in the dropdown. The USB ID must read <code>04F9&nbsp;2042</code>. If it reads <code>2049</code>, Editor Lite is still on — go back to step 2.</li>
+          <li>Set the target driver to <b>WinUSB</b> and click <b>Replace Driver</b>.</li>
+          <li>Unplug the printer and plug it back in.</li>
         </ol>
-        <p class="warn">⚠ This replaces Brother's driver, so Brother's own P-touch / QL software won't print until you revert it (see step 6). Be careful to pick <b>QL-700</b> in Zadig and nothing else.</p>
+        <p class="warn">Only change the QL-700 entry. Brother's own software won't print again until you restore its driver (step 6).</p>
 
         <h3>4. Connect</h3>
-        <p>Click <b>Connect</b> (top-right) and choose <b>QL-700</b> in the browser's device picker. The button becomes <b>Reconnect</b> once linked, and it reconnects automatically next time.</p>
+        <p>Click <b>Connect printer</b> (top right) and pick <b>QL-700</b> in the browser's device list. The status line turns green. Next time, the printer reconnects by itself.</p>
 
-        <h3>5. Choose your label &amp; print</h3>
+        <h3>5. Print</h3>
         <ul>
-          <li>Pick the tape in the top-left dropdown to match the roll you loaded: <b>62mm / 29mm continuous</b>, or a <b>die-cut</b> size such as <b>29×90mm address labels</b>.</li>
-          <li>Design your label, then click <b>Print</b>.</li>
-          <li>A <b>red flashing LED</b> almost always means the tape you selected doesn't match the roll that's loaded — pick the matching size.</li>
+          <li>Choose the tape in the toolbar to match the roll that's loaded: <b>62 mm</b> or <b>29 mm continuous</b>, or a die-cut size such as <b>29×90 mm address labels</b>.</li>
+          <li>Design the label, then click <b>Print</b>.</li>
+          <li>A <b>flashing red light</b> on the printer almost always means the tape chosen here doesn't match the roll. Pick the matching size and press the printer's cut button to clear the error.</li>
         </ul>
 
-        <h3>6. Going back to Brother's software</h3>
-        <p>Open <b>Device Manager</b>, find <b>QL-700</b> under “Universal Serial Bus devices”, right-click → <b>Uninstall device</b> (tick “Delete the driver software”), then re-run Brother's installer to restore their driver.</p>
+        <h3>6. Restore Brother's driver</h3>
+        <p>Open <b>Device Manager</b>, expand <b>Universal Serial Bus devices</b>, right-click <b>QL-700</b> → <b>Uninstall device</b> with <i>Attempt to remove the driver</i> ticked, then replug the printer. If Windows doesn't restore Brother's driver by itself, reinstall it from Brother's website.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- first-run: which label roll is loaded? -->
+  <div id="roll-modal" class="modal hidden">
+    <div class="modal-box">
+      <div class="modal-head"><span>Which label roll is in the printer?</span><button id="roll-close" class="mini" title="Close">×</button></div>
+      <div class="modal-body">
+        <p class="roll-intro">Pick the roll that's installed in your printer. You can change this later from the dropdown in the toolbar.</p>
+        <p class="roll-intro">If the printer's status light turns red when trying to print, you may have selected the incorrect setting.</p>
+        <div id="roll-grid" class="roll-grid"></div>
+      </div>
+      <div class="modal-foot">
+        <span class="menubar-spacer"></span>
+        <button id="roll-use" class="btn primary" disabled>Use this roll</button>
       </div>
     </div>
   </div>
@@ -226,11 +253,10 @@
   <!-- unsupported browser warning -->
   <div id="browser-warn" class="modal hidden">
     <div class="modal-box sm">
-      <div class="modal-head"><span>Use Chrome to print</span><button id="bw-close" class="mini">×</button></div>
+      <div class="modal-head"><span>This browser can't print</span><button id="bw-close" class="mini">×</button></div>
       <div class="modal-body help-body">
-        <p>This app connects to the QL-700 with <b>WebUSB</b>, which only works in <b>Google Chrome</b>, <b>Microsoft Edge</b>, or another Chromium-based browser.</p>
-        <p>Your current browser doesn't support it, so <b>printing won't work here</b>. Please open this page in <b>Google Chrome</b> to connect and print.</p>
-        <p class="muted">You can still design and export labels in this browser — only printing is unavailable.</p>
+        <p>Printing needs <b>WebUSB</b>, which only <b>Google Chrome</b>, <b>Microsoft Edge</b> and other Chromium browsers support.</p>
+        <p>You can still design and export labels here. To print, open this page in Chrome or Edge.</p>
       </div>
     </div>
   </div>
@@ -240,9 +266,9 @@
     <div class="modal-box sm">
       <div class="modal-head"><span>About</span><button id="about-close" class="mini">×</button></div>
       <div class="modal-body about-body">
-        <h3>QL-700 Label Studio</h3>
-        <p>A WebUSB label designer for the Brother QL-700. Design multi-element labels, use templates with variable data, and print with cut lines — no drivers beyond WinUSB.</p>
-        <p class="muted">Files are saved as versioned JSON (format <code>ql700-label</code> v1). Your workspace is auto-saved in this browser.</p>
+        <p>This is a label editor / printer tool for the Brother QL-700 printer that runs solely in the browser without the need for proprietary Brother software (eg. P-Touch).</p>
+        <p>Currently supports only the QL-700 printer. Feel free to open PRs or issues on <a href="https://github.com/fipppi/ql700-printer" target="_blank" rel="noopener">GitHub</a>.</p>
+        <p class="muted">Vibe coded with love by <a href="https://github.com/fipppi" target="_blank" rel="noopener">fipppi</a>.</p>
       </div>
     </div>
   </div>

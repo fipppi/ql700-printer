@@ -2,7 +2,7 @@
 import { QLPrinter } from './printer.js';
 import { MM_TO_DOTS, MEDIA } from './printer.js';
 import { LabelDoc, makeText, makeSymbol, makeImage, makeShape, fontString, newId } from './label.js';
-import { parseShippingPdf, buildAddressLabelDoc } from './pdfimport.js';
+import { FEATURES } from './config.js';
 
 const RULER = 22;             // ruler thickness in px
 const FONTS = ['Arial', 'Georgia', 'Times New Roman', 'Courier New', 'Verdana', 'Impact', 'Segoe UI', 'Segoe UI Symbol'];
@@ -30,6 +30,69 @@ const dpmm = MM_TO_DOTS;
 const FORMAT = 'ql700-label';
 const FORMAT_VERSION = 1;
 const STORAGE_KEY = 'ql700-workspace';
+const ROLL_KEY = 'ql700-roll-chosen';   // set once the first-run roll picker has been answered
+
+// Illustration of a label roll for the roll picker, drawn to scale from the media
+// entry: a Brother DK-style spool (black flanges, wound paper, cardboard core) with
+// the tape peeling off the top. Tape height ∝ width; die-cut rolls show the
+// pre-cut labels on their backing liner. Gradient ids are prefixed per roll so
+// several illustrations can share one page.
+function rollSvg(m, key) {
+  const W = 240, H = 100, scale = 0.72;                 // px per mm
+  const th = +(m.widthMm * scale).toFixed(1);           // tape thickness on screen
+  const cy = 52, cx = 40, tilt = 0.38;                  // spool centre; ellipse rx = r·tilt (viewed at an angle)
+  const paperR = th / 2 + 13, flangeR = paperR + 5, coreR = 6;
+  const depth = Math.round(th);                         // spool depth (front → back flange) = the tape's width, as on a real roll
+  const x0 = Math.round(cx + depth + flangeR * tilt + 6), x1 = W - 4;
+  const y0 = +(cy - th / 2).toFixed(1);
+  const id = 'r' + String(key).replace(/\W/g, '');
+  const el = (cxx, r, extra) => `<ellipse cx="${cxx}" cy="${cy}" rx="${(r * tilt).toFixed(1)}" ry="${r}" ${extra}/>`;
+
+  const defs = `<defs>
+    <linearGradient id="${id}f" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3a3a3a"/><stop offset="1" stop-color="#151515"/></linearGradient>
+    <linearGradient id="${id}p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbfaf7"/><stop offset="0.5" stop-color="#e6e2da"/><stop offset="1" stop-color="#c9c4ba"/></linearGradient>
+    <linearGradient id="${id}t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#eeebe4"/></linearGradient>
+    <linearGradient id="${id}l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e3dfd5"/><stop offset="1" stop-color="#cfc9bd"/></linearGradient>
+  </defs>`;
+
+  // spool: back flange, wound paper body, front flange with core
+  const spool = `
+    ${el(cx + depth, flangeR, `fill="#1c1c1c"`)}
+    <rect x="${cx}" y="${cy - paperR}" width="${depth}" height="${paperR * 2}" fill="url(#${id}p)"/>
+    ${el(cx + depth, paperR, `fill="url(#${id}p)"`)}
+    ${el(cx, flangeR, `fill="url(#${id}f)"`)}
+    ${el(cx, flangeR - 2, `fill="none" stroke="#555" stroke-width="0.8"`)}
+    ${el(cx, coreR + 2, `fill="#4a4036"`)}
+    ${el(cx, coreR, `fill="#111"`)}`;
+
+  // tape peeling off the top of the wound paper and running to the right edge
+  // the strip leaves along the full depth of the roll and twists into the side-on tape
+  const peelY = cy - paperR, bx = cx + depth;
+  const peel = `<path d="M${cx} ${peelY} L${bx} ${peelY} C${bx + 10} ${peelY} ${x0 - 10} ${y0} ${x0} ${y0} L${x0} ${y0 + th} C${x0 - 10} ${y0 + th} ${cx + 10} ${peelY + 6} ${cx} ${peelY + 3} Z" fill="url(#${id}t)" stroke="#b8b3a8" stroke-width="0.8" stroke-linejoin="round"/>`;
+  const shadow = `<rect x="${x0}" y="${y0 + th + 1}" width="${x1 - x0 - 6}" height="3" rx="1.5" fill="#000" opacity="0.10"/>`;
+  let tape = `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${th}" fill="url(#${m.kind === 'diecut' ? id + 'l' : id + 't'})" stroke="#b8b3a8" stroke-width="0.8"/>`;
+  if (m.kind === 'diecut') {
+    // white labels on the darker backing liner
+    const pitch = m.lengthMm * scale, gap = 4, inset = 2.5, r = Math.max(2, th * 0.1);
+    if (m.shape === 'round') {
+      const d = th - inset * 2;
+      for (let x = x0 + gap; x < x1; x += pitch + gap) {
+        if (x + d > x1 + d * 0.6) break;
+        tape += `<circle cx="${(x + d / 2).toFixed(1)}" cy="${cy}" r="${(d / 2).toFixed(1)}" fill="#fff" stroke="#c9c4ba" stroke-width="0.7"/>`;
+      }
+    } else {
+      for (let x = x0 + gap; x < x1; x += pitch) {
+        const w = Math.min(pitch - gap, x1 - x + 6);
+        tape += `<rect x="${x.toFixed(1)}" y="${(y0 + inset).toFixed(1)}" width="${w.toFixed(1)}" height="${(th - inset * 2).toFixed(1)}" rx="${r.toFixed(1)}" fill="#fff" stroke="#c9c4ba" stroke-width="0.7"/>`;
+      }
+    }
+  } else {
+    // faint cut marks: continuous tape is cut wherever you like
+    tape += `<line x1="${x0 + 66}" y1="${y0}" x2="${x0 + 66}" y2="${y0 + th}" stroke="#9a948a" stroke-width="1" stroke-dasharray="2 3"/>`;
+    tape += `<text x="${x0 + 66}" y="${y0 - 3}" text-anchor="middle" font-family="system-ui, sans-serif" font-size="8" fill="#9a948a">✂</text>`;
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${m.label}">${defs}${shadow}${tape}${peel}${spool}</svg>`;
+}
 
 class Editor {
   constructor() {
@@ -63,8 +126,60 @@ class Editor {
 
     this._wire();
     if (!this.loadWorkspace()) this._seed();
+    this.syncToolbar();
     this.fit();
     this.renderFilePicker();
+    // first visit in this browser: ask which roll is loaded before anything else
+    let prompted = false;
+    try { prompted = localStorage.getItem(ROLL_KEY) === '1'; } catch (_) {}
+    if (!prompted) this.openRollPicker(true);
+  }
+
+  // tape + orientation dropdowns follow the active label
+  syncToolbar() { $('media').value = String(this.doc.mediaKey); $('orientation').value = this.doc.orientation; }
+
+  // ---- roll picker (first run, and Help → Choose label roll…) ----
+  // No roll is preselected: the user must pick one. On first run the dialog can't be dismissed.
+  openRollPicker(firstRun = false) {
+    const grid = $('roll-grid');
+    $('roll-close').classList.toggle('hidden', firstRun);
+    $('roll-use').disabled = true;
+    // one row per tape width, widest first; continuous tape leads each row
+    const widths = [...new Set(Object.values(MEDIA).map((m) => m.widthMm))].sort((a, b) => b - a);
+    const card = ([k, m]) => {
+      const name = m.shape === 'round' ? `${m.widthMm} mm round` : m.kind === 'diecut' ? `${m.widthMm} × ${m.lengthMm} mm` : `${m.widthMm} mm`;
+      const desc = m.kind === 'continuous' ? `Endless ${m.note} tape — cut to any length`
+        : m.shape === 'round' ? `Pre-cut round labels${m.note ? ` (${m.note})` : ''}, ${m.widthMm} mm across`
+        : `Pre-cut ${m.note} labels, ${m.widthMm} × ${m.lengthMm} mm each`;
+      return `<button type="button" class="roll" data-key="${k}">
+        ${rollSvg(m, k)}
+        <span class="roll-name">${name}<span class="roll-kind">${m.kind === 'diecut' ? 'die-cut' : 'continuous'}</span></span>
+        <span class="roll-desc">${desc}</span>
+        <span class="roll-dk">${m.dk}</span>
+      </button>`;
+    };
+    grid.innerHTML = widths.map((w) => {
+      const rolls = Object.entries(MEDIA).filter(([, m]) => m.widthMm === w).sort(([, a], [, b]) => (a.kind === 'continuous' ? -1 : 1) - (b.kind === 'continuous' ? -1 : 1));
+      return `<h3 class="roll-row-title">${w} mm</h3><div class="roll-row">${rolls.map(card).join('')}</div>`;
+    }).join('');
+    this._rollChoice = null;
+    grid.querySelectorAll('.roll').forEach((b) => b.addEventListener('click', () => {
+      grid.querySelectorAll('.roll').forEach((x) => x.classList.toggle('sel', x === b));
+      this._rollChoice = b.dataset.key;
+      $('roll-use').disabled = false;
+    }));
+    $('roll-modal').classList.remove('hidden');
+  }
+  closeRollPicker(apply) {
+    if (apply && !this._rollChoice) return;
+    if (apply && this._rollChoice !== this.doc.mediaKey) {
+      const k = this._rollChoice;
+      this.withUndo(() => { this.doc.setMedia(k); this.clampAll(); });
+      this.syncToolbar(); this.fit(); this.renderPanels(); this.save();
+    }
+    if (apply) this.status(`Using ${MEDIA[this.doc.mediaKey].label}. Change it any time from the tape dropdown.`, 'ok');
+    try { localStorage.setItem(ROLL_KEY, '1'); } catch (_) {}
+    $('roll-modal').classList.add('hidden');
   }
 
   // active label bookkeeping
@@ -103,10 +218,10 @@ class Editor {
     $('add-shape').addEventListener('change', (e) => { if (e.target.value) { this.addEl(makeShape(e.target.value)); e.target.value = ''; } });
     $('add-cut').addEventListener('click', () => this.addCut());
     $('tpl-btn').addEventListener('click', () => this.openTemplate());
-    $('grid-on').addEventListener('change', (e) => { this.view.grid = e.target.checked; this.render(); });
+    $('grid-on').addEventListener('change', (e) => { this.view.grid = e.target.checked; this.syncViewMenu(); this.render(); });
     $('grid-size').addEventListener('input', (e) => { this.view.gridMm = Math.max(1, Number(e.target.value) || 5); this.render(); });
-    $('snap-grid').addEventListener('change', (e) => { this.view.snapGrid = e.target.checked; });
-    $('snap-guides').addEventListener('change', (e) => { this.view.snapGuides = e.target.checked; });
+    $('snap-grid').addEventListener('change', (e) => { this.view.snapGrid = e.target.checked; this.syncViewMenu(); });
+    $('snap-guides').addEventListener('change', (e) => { this.view.snapGuides = e.target.checked; this.syncViewMenu(); });
     // drag from rulers to create guides
     this.rTop.addEventListener('pointerdown', (e) => this.startGuide(e, 'h'));
     this.rLeft.addEventListener('pointerdown', (e) => this.startGuide(e, 'v'));
@@ -173,11 +288,16 @@ class Editor {
     });
     window.addEventListener('click', () => mb.querySelectorAll('.menu').forEach((x) => x.classList.remove('open')));
 
+    // theme (light by default; the <head> script applied the saved choice before first paint)
+    $('theme-btn').addEventListener('click', () => this.setTheme(this.theme === 'dark' ? 'light' : 'dark'));
+    this.setTheme(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light', { render: false });
+
     // file picker
     $('new-label').addEventListener('click', () => this.newLabel());
     $('print-selected').addEventListener('click', () => this.printSelected());
     $('import-file').addEventListener('change', (e) => this.importFile(e.target.files[0]));
-    $('import-pdf-file').addEventListener('change', (e) => this.importPdfs([...e.target.files]));
+    if (FEATURES.shippingPdf) $('import-pdf-file').addEventListener('change', (e) => this.importPdfs([...e.target.files]));
+    else document.querySelector('button[data-action="import-pdf"]').remove();
 
     // modals
     $('modal-close').addEventListener('click', () => this.closeModal());
@@ -185,6 +305,8 @@ class Editor {
     $('help-btn').addEventListener('click', () => $('help').classList.remove('hidden'));
     $('help-close').addEventListener('click', () => $('help').classList.add('hidden'));
     $('bw-close').addEventListener('click', () => $('browser-warn').classList.add('hidden'));
+    $('roll-use').addEventListener('click', () => this.closeRollPicker(true));
+    $('roll-close').addEventListener('click', () => this.closeRollPicker(false));
     $('tpl-add-row').addEventListener('click', () => this.tplAddRow());
     $('tpl-print').addEventListener('click', () => this.printTemplate());
     $('tpl-free').addEventListener('click', () => this.tplToggleFree());
@@ -198,17 +320,54 @@ class Editor {
 
     // build static selects
     const mediaSel = $('media');
-    mediaSel.innerHTML = Object.entries(MEDIA).map(([k, m]) => `<option value="${k}">${m.label}</option>`).join('');
-    this.status('Ready. Connect the printer to print.', 'info');
+    const opt = ([k, m]) => `<option value="${k}">${m.label} · ${m.dk}</option>`;
+    const entries = Object.entries(MEDIA);
+    mediaSel.innerHTML =
+      `<optgroup label="Continuous tape">${entries.filter(([, m]) => m.kind === 'continuous').map(opt).join('')}</optgroup>` +
+      `<optgroup label="Die-cut labels">${entries.filter(([, m]) => m.kind === 'diecut').map(opt).join('')}</optgroup>`;
+    this.status('Ready. Connect the printer when you want to print.', 'info');
 
     // WebUSB support / silent reconnect
     if (navigator.usb) {
-      this.printer.reconnect().then((i) => { if (i) { this.status('Printer ready: ' + i.product, 'ok'); $('print').disabled = false; $('connect').textContent = 'Reconnect'; } }).catch(() => {});
+      this.printer.reconnect().then((i) => { if (i) this.onConnected(i); }).catch(() => {});
     } else {
       $('browser-warn').classList.remove('hidden'); // no WebUSB (Firefox/Safari/etc.)
       $('connect').disabled = true;
-      this.status('This browser can’t print (no WebUSB). Open in Chrome or Edge — see Help.', 'error');
+      this.status('This browser can’t print. Open this page in Chrome or Edge to print.', 'error');
     }
+  }
+
+  // ---- theme ----
+  setTheme(t, { render = true } = {}) {
+    this.theme = t;
+    document.documentElement.dataset.theme = t;
+    try { localStorage.setItem('ql700-theme', t); } catch (_) {}
+    const dark = t === 'dark';
+    $('theme-btn').textContent = dark ? '☀' : '☾';
+    $('theme-btn').title = dark ? 'Switch to light theme' : 'Switch to dark theme';
+    document.querySelector('meta[name="theme-color"]').content = getComputedStyle(document.documentElement).getPropertyValue('--menubar').trim();
+    this._colors = null; // canvas colours are re-read from the stylesheet on next render
+    this.syncViewMenu();
+    if (render) this.render();
+  }
+  // Canvas drawing colours come from the same CSS tokens as the UI.
+  get colors() {
+    if (!this._colors) {
+      const cs = getComputedStyle(document.documentElement);
+      const v = (n) => cs.getPropertyValue(n).trim();
+      this._colors = { accent: v('--accent'), guide: v('--guide'), guideOn: v('--guide-on'), cut: v('--cut'), cutOn: v('--cut-on'), rulerBg: v('--ruler-bg'), rulerTick: v('--ruler-tick'), rulerText: v('--ruler-text'), stageA: v('--stage-a') };
+    }
+    return this._colors;
+  }
+  // tick marks on the View menu's on/off items
+  syncViewMenu() {
+    const state = { grid: this.view.grid, snapGrid: this.view.snapGrid, snapGuides: this.view.snapGuides, dark: this.theme === 'dark' };
+    document.querySelectorAll('#menubar button[data-check]').forEach((b) => b.classList.toggle('on', !!state[b.dataset.check]));
+  }
+  onConnected(info) {
+    this.status(`Connected to ${info.product}. Ready to print.`, 'ok');
+    $('print').disabled = false; $('print').title = 'Print this label';
+    $('connect').textContent = 'Reconnect printer';
   }
 
   // ---- geometry ----
@@ -255,9 +414,9 @@ class Editor {
         el.hDots = Math.round(img.naturalHeight * sc);
       } else { var el = makeImage(img, file.name); }
       this.addEl(el);
-      this.status('Image added (auto B/W dithered).', 'ok');
+      this.status('Image added and converted to black & white dots. Drag a corner to resize it.', 'ok');
     };
-    img.onerror = () => this.status('Could not load image.', 'error');
+    img.onerror = () => this.status('That file isn’t an image this browser can open. Try a PNG, JPEG, SVG or WebP.', 'error');
     img.src = URL.createObjectURL(file);
   }
   addCut() {
@@ -470,8 +629,7 @@ class Editor {
     this.doc.cuts = (s.cuts || []).map((c) => ({ ...c }));
     this.doc.guides = (s.guides || []).map((g) => ({ ...g }));
     this.selId = s.selId;
-    $('media').value = String(this.doc.mediaKey);
-    $('orientation').value = this.doc.orientation;
+    this.syncToolbar();
     this.render(); this.renderPanels();
   }
   pushUndo(state) {
@@ -678,6 +836,13 @@ class Editor {
     ctx.setTransform(s, 0, 0, s, 0, 0);
     if (this.view.grid) this.drawGrid(ctx, W, H, s);
     for (const el of this.doc.elements) this.doc.drawElement(ctx, el);
+    if (this.doc.media.shape === 'round') {
+      // round label: show the liner outside the circle (nothing prints there)
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.ellipse(W / 2, H / 2, W / 2, H / 2, 0, 0, Math.PI * 2);
+      ctx.fillStyle = this.colors.stageA; ctx.fill('evenodd');
+      ctx.restore();
+    }
 
     this.drawOverlay(W, H, s);
     this.drawRulers(W, H, s);
@@ -702,26 +867,46 @@ class Editor {
     octx.setTransform(1, 0, 0, 1, 0, 0);
     octx.clearRect(0, 0, this.overlay.width, this.overlay.height);
 
-    // guides (dashed cyan, full span)
+    const C = this.colors;
+    // round label edge
+    if (this.doc.media.shape === 'round') {
+      octx.strokeStyle = C.rulerTick; octx.lineWidth = 1; octx.setLineDash([4, 4]);
+      octx.beginPath(); octx.ellipse((W * s) / 2, (H * s) / 2, (W * s) / 2 - 0.5, (H * s) / 2 - 0.5, 0, 0, Math.PI * 2); octx.stroke();
+      octx.setLineDash([]);
+    }
+    // guides (dashed, full span)
     for (const g of this.doc.guides) {
       const on = g.id === this.selGuide;
-      octx.strokeStyle = on ? '#33e0ff' : '#22b8d6'; octx.lineWidth = on ? 2 : 1;
+      octx.strokeStyle = on ? C.guideOn : C.guide; octx.lineWidth = on ? 2 : 1;
       octx.setLineDash([3, 3]); octx.beginPath();
       if (g.dir === 'h') { const y = g.pos * s + 0.5; octx.moveTo(0, y); octx.lineTo(W * s, y); }
       else { const x = g.pos * s + 0.5; octx.moveTo(x, 0); octx.lineTo(x, H * s); }
       octx.stroke(); octx.setLineDash([]);
     }
 
+    // editor-only hint for shapes that print nothing visible on their own
+    // (white fill or outline-only with no outline width) so they can still be found and grabbed
+    for (const sh of this.doc.elements) {
+      if (sh.type !== 'shape' || !sh.visible || sh.id === this.selId) continue;
+      const ft = sh.fill?.type || 'solid';
+      if (!((ft === 'white' || ft === 'none') && !(sh.stroke?.width > 0))) continue;
+      const cs = this.corners(sh).map((p) => ({ x: p.x * s, y: p.y * s }));
+      octx.strokeStyle = C.rulerTick; octx.lineWidth = 1; octx.setLineDash([2, 4]);
+      octx.beginPath(); octx.moveTo(cs[0].x, cs[0].y);
+      for (let i = 1; i < 4; i++) octx.lineTo(cs[i].x, cs[i].y);
+      octx.closePath(); octx.stroke(); octx.setLineDash([]);
+    }
+
     // selection box (rotation-aware) + corner scale handles
     const el = this.sel();
     if (el) {
       const cs = this.corners(el).map((p) => ({ x: p.x * s, y: p.y * s }));
-      octx.strokeStyle = '#4f8cff'; octx.lineWidth = 1.5; octx.setLineDash([4, 3]);
+      octx.strokeStyle = C.accent; octx.lineWidth = 1.5; octx.setLineDash([4, 3]);
       octx.beginPath(); octx.moveTo(cs[0].x, cs[0].y);
       for (let i = 1; i < 4; i++) octx.lineTo(cs[i].x, cs[i].y);
       octx.closePath(); octx.stroke(); octx.setLineDash([]);
       for (const c of cs) {
-        octx.fillStyle = '#fff'; octx.strokeStyle = '#4f8cff'; octx.lineWidth = 1.5;
+        octx.fillStyle = '#fff'; octx.strokeStyle = C.accent; octx.lineWidth = 1.5;
         octx.beginPath(); octx.rect(c.x - 4, c.y - 4, 8, 8); octx.fill(); octx.stroke();
       }
       // mid-edge stretch handles (bar hints the stretch axis)
@@ -729,12 +914,12 @@ class Editor {
         const X = ed.x * s, Y = ed.y * s;
         const vert = ed.axis === 'x'; // vertical edge (left/right) -> tall bar
         const w = vert ? 5 : 13, h = vert ? 13 : 5;
-        octx.fillStyle = '#4f8cff'; octx.strokeStyle = '#fff'; octx.lineWidth = 1;
+        octx.fillStyle = C.accent; octx.strokeStyle = '#fff'; octx.lineWidth = 1;
         octx.beginPath(); octx.rect(X - w / 2, Y - h / 2, w, h); octx.fill(); octx.stroke();
       }
     }
     // long-edge resize handle
-    octx.fillStyle = '#4f8cff';
+    octx.fillStyle = C.accent;
     if (this.doc.orientation === 'h') {
       const x = W * s;
       octx.fillRect(x - 3, 0, 3, H * s);
@@ -745,10 +930,10 @@ class Editor {
       this.grip(octx, (W * s) / 2, y - 1.5);
     }
 
-    // cut lines (dashed red across the tape, with a draggable tab at the near edge)
+    // cut lines (dashed across the tape, with a draggable tab at the near edge)
     for (const c of this.doc.cuts) {
       const on = c.id === this.selCut;
-      octx.strokeStyle = on ? '#ff8a5a' : '#ff5a5a';
+      octx.strokeStyle = on ? C.cutOn : C.cut;
       octx.lineWidth = on ? 2 : 1.5;
       octx.setLineDash([6, 4]);
       octx.beginPath();
@@ -762,7 +947,7 @@ class Editor {
       octx.stroke();
       octx.setLineDash([]);
       // tab
-      octx.fillStyle = on ? '#ff8a5a' : '#ff5a5a';
+      octx.fillStyle = on ? C.cutOn : C.cut;
       if (this.doc.orientation === 'h') { const x = c.pos * s; this.cutTab(octx, x, 0, true); }
       else { const y = c.pos * s; this.cutTab(octx, 0, y, false); }
     }
@@ -776,15 +961,15 @@ class Editor {
     ctx.fillText('✂', horizontal ? x : 8, horizontal ? 8 : y);
     ctx.restore();
   }
-  grip(ctx, x, y) { ctx.fillStyle = '#4f8cff'; ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill(); }
+  grip(ctx, x, y) { ctx.fillStyle = this.colors.accent; ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill(); }
 
   drawRulers(W, H, s) {
+    const C = this.colors;
     const drawR = (canvas, lengthPx, dotsTotal, horizontal) => {
-      const dpr = 1;
       canvas.width = horizontal ? lengthPx : RULER;
       canvas.height = horizontal ? RULER : lengthPx;
       const c = canvas.getContext('2d');
-      c.fillStyle = '#20242e'; c.fillRect(0, 0, canvas.width, canvas.height);
+      c.fillStyle = C.rulerBg; c.fillRect(0, 0, canvas.width, canvas.height);
       c.font = '9px system-ui'; c.lineWidth = 1;
       const totalMm = dotsTotal / dpmm;
       const endPx = totalMm * dpmm * s;
@@ -793,8 +978,8 @@ class Editor {
       const endLabel = Math.abs(near) < 0.15 ? String(Math.round(totalMm)) : totalMm.toFixed(1);
 
       const tick = (px, label, end) => {
-        c.strokeStyle = end ? '#4f8cff' : '#3a4150';
-        c.fillStyle = end ? '#7ea9ff' : '#8a93a6';
+        c.strokeStyle = end ? C.accent : C.rulerTick;
+        c.fillStyle = end ? C.accent : C.rulerText;
         c.beginPath();
         if (horizontal) {
           c.moveTo(px, RULER); c.lineTo(px, RULER - (end ? 9 : 7)); c.stroke();
@@ -843,7 +1028,7 @@ class Editor {
     const vars = this.doc.variables();
     const btn = $('tpl-btn');
     btn.classList.toggle('hidden', vars.length === 0);
-    if (vars.length) btn.textContent = `▦ Template data (${vars.length} var${vars.length > 1 ? 's' : ''})`;
+    if (vars.length) btn.textContent = `▦ Template data (${vars.length} variable${vars.length > 1 ? 's' : ''})`;
   }
 
   // ---- side panels ----
@@ -856,15 +1041,15 @@ class Editor {
     for (let i = this.doc.elements.length - 1; i >= 0; i--) {
       const el = this.doc.elements[i];
       const row = document.createElement('div');
-      row.className = 'layer' + (el.id === this.selId ? ' sel' : '');
+      row.className = 'layer' + (el.id === this.selId ? ' sel' : '') + (el.visible ? '' : ' off');
       const icon = el.type === 'image' ? '🖼' : el.type === 'symbol' ? '✦' : el.type === 'shape' ? '▭' : 'T';
       row.innerHTML = `
-        <button class="vis" title="Show/hide">${el.visible ? '👁' : '—'}</button>
-        <span class="ico">${icon}</span>
+        <button class="vis" title="${el.visible ? 'Hide (won’t print)' : 'Show'}">${el.visible ? '👁' : '—'}</button>
+        <span class="ico" title="${el.type[0].toUpperCase() + el.type.slice(1)}">${icon}</span>
         <span class="nm">${escapeHtml(el.name || el.type)}</span>
-        <button class="up" title="Up">▲</button>
-        <button class="dn" title="Down">▼</button>
-        <button class="del" title="Delete">🗑</button>`;
+        <button class="up" title="Bring forward">▲</button>
+        <button class="dn" title="Send backward">▼</button>
+        <button class="del" title="Delete layer">🗑</button>`;
       row.addEventListener('click', (e) => {
         if (e.target.closest('button')) return;
         this.selId = el.id; this.selCut = null; this.selGuide = null; this.render(); this.renderPanels();
@@ -875,43 +1060,43 @@ class Editor {
       row.querySelector('.del').addEventListener('click', () => { this.withUndo(() => { this.doc.remove(el.id); if (this.selId === el.id) this.selId = null; }); this.render(); this.renderPanels(); });
       list.appendChild(row);
     }
-    if (!this.doc.elements.length) list.innerHTML = '<div class="empty">No layers. Add text, a symbol, or an image.</div>';
+    if (!this.doc.elements.length) list.innerHTML = '<div class="empty">This label is empty. Add text, a symbol, an image or a shape from the toolbar.</div>';
   }
 
   renderProps() {
     const p = $('props');
     const el = this.sel();
-    if (!el) { p.innerHTML = '<div class="empty">Select a layer to edit its properties.</div>'; return; }
+    if (!el) { p.innerHTML = '<div class="empty">Click something on the label, or a layer above, to edit it.</div>'; return; }
     const row = (label, inner) => `<label class="pf">${label}<div>${inner}</div></label>`;
     let html = '';
     if (el.type === 'text' || el.type === 'symbol') {
       const fonts = FONTS.map((f) => `<option ${f === el.fontFamily ? 'selected' : ''}>${f}</option>`).join('');
       html += row('Text', `<textarea id="p-text" rows="2">${escapeHtml(el.text)}</textarea>`);
       html += row('Font', `<select id="p-font">${fonts}</select>`);
-      html += `<div class="prow">${row('Size (dots)', `<input id="p-size" type="number" min="8" max="900" value="${Math.round(el.fontSizeDots)}">`)}${row('Align', `<select id="p-align"><option value="left"${el.align==='left'?' selected':''}>Left</option><option value="center"${el.align==='center'?' selected':''}>Center</option><option value="right"${el.align==='right'?' selected':''}>Right</option></select>`)}</div>`;
+      html += `<div class="prow">${row('Size (dots · 12 per mm)', `<input id="p-size" type="number" min="8" max="900" value="${Math.round(el.fontSizeDots)}">`)}${row('Align', `<select id="p-align"><option value="left"${el.align==='left'?' selected':''}>Left</option><option value="center"${el.align==='center'?' selected':''}>Centre</option><option value="right"${el.align==='right'?' selected':''}>Right</option></select>`)}</div>`;
       html += `<div class="prow"><label class="chk"><input id="p-bold" type="checkbox" ${el.bold?'checked':''}> Bold</label><label class="chk"><input id="p-italic" type="checkbox" ${el.italic?'checked':''}> Italic</label></div>`;
-      html += `<label class="chk"><input id="p-invert" type="checkbox" ${el.invert?'checked':''}> Invert (white knockout over a filled shape)</label>`;
+      html += `<label class="chk" title="Prints white — place it over a black shape"><input id="p-invert" type="checkbox" ${el.invert?'checked':''}> White text (on a black shape)</label>`;
       if (el.type === 'symbol') {
-        html += row('Symbols', `<div class="symgrid">${SYMBOLS.map((g)=>`<button class="symbtn${g===el.text?' cur':''}" data-g="${escapeHtml(g)}">${escapeHtml(g)}</button>`).join('')}</div>`);
+        html += row('Symbol', `<div class="symgrid">${SYMBOLS.map((g)=>`<button class="symbtn${g===el.text?' cur':''}" data-g="${escapeHtml(g)}">${escapeHtml(g)}</button>`).join('')}</div>`);
       }
     } else if (el.type === 'image') {
       const wmm = (el.wDots / dpmm).toFixed(1);
       html += row('Width (mm)', `<input id="p-imgw" type="number" min="1" step="0.5" value="${wmm}">`);
-      html += `<div class="hint">Keeps aspect ratio · re-dithered on resize</div>`;
+      html += `<div class="hint">Height follows the width. The image is converted to black &amp; white dots again after each resize.</div>`;
     } else if (el.type === 'shape') {
       const k = el.shapeKind;
       const opt = (v, t) => `<option value="${v}"${k===v?' selected':''}>${t}</option>`;
-      html += row('Shape', `<select id="p-shape">${opt('rect','Rectangle / Square')}${opt('roundrect','Rounded rect')}${opt('circle','Circle / Ellipse')}</select>`);
+      html += row('Shape', `<select id="p-shape">${opt('rect','Rectangle')}${opt('roundrect','Rounded rectangle')}${opt('circle','Circle / ellipse')}</select>`);
       html += `<div class="prow">${row('Width (mm)', `<input id="p-sw" type="number" min="1" step="0.5" value="${(el.wDots/dpmm).toFixed(1)}">`)}${row('Height (mm)', `<input id="p-sh" type="number" min="1" step="0.5" value="${(el.hDots/dpmm).toFixed(1)}">`)}</div>`;
       if (k === 'roundrect') html += row('Corner radius (mm)', `<input id="p-cr" type="number" min="0" step="0.5" value="${(el.cornerRadius/dpmm).toFixed(1)}">`);
       const ft = el.fill?.type || 'solid';
-      html += row('Fill', `<select id="p-fill"><option value="none"${ft==='none'?' selected':''}>None (outline)</option><option value="solid"${ft==='solid'?' selected':''}>Solid black</option><option value="texture"${ft==='texture'?' selected':''}>Texture (dithered)</option></select>`);
-      if (ft === 'texture') html += row(`Density <span id="dens-val">${el.fill.density??50}%</span>`, `<input id="p-dens" type="range" min="0" max="100" step="5" value="${el.fill.density??50}">`);
-      html += row('Outline (px)', `<input id="p-stroke" type="number" min="0" max="40" step="1" value="${el.stroke?.width||0}">`);
+      html += row('Fill', `<select id="p-fill"><option value="none"${ft==='none'?' selected':''}>Outline only</option><option value="solid"${ft==='solid'?' selected':''}>Solid black</option><option value="white"${ft==='white'?' selected':''}>Solid white (covers what's below)</option><option value="texture"${ft==='texture'?' selected':''}>Grey pattern (dots)</option></select>`);
+      if (ft === 'texture') html += row(`Darkness <span id="dens-val">${el.fill.density??50}%</span>`, `<input id="p-dens" type="range" min="0" max="100" step="5" value="${el.fill.density??50}">`);
+      html += row('Outline width (dots)', `<input id="p-stroke" type="number" min="0" max="40" step="1" value="${el.stroke?.width||0}">`);
     }
     html += `<div class="prow">${row('X (mm)', `<input id="p-x" type="number" step="0.5" value="${(el.x/dpmm).toFixed(1)}">`)}${row('Y (mm)', `<input id="p-y" type="number" step="0.5" value="${(el.y/dpmm).toFixed(1)}">`)}</div>`;
     html += row('Rotation (°)', `<input id="p-rot" type="number" step="15" value="${Math.round((el.rotation||0)*180/Math.PI)}">`);
-    html += `<div class="hint">Press <b>R</b> to rotate 90° · drag a <b>corner</b> to scale, an <b>edge</b> to stretch H/V</div>`;
+    html += `<div class="hint"><b>R</b> rotates 90°. Drag a corner to resize, an edge to stretch.</div>`;
     html += `<button id="p-del" class="btn danger small">Delete layer</button>`;
     p.innerHTML = html;
 
@@ -947,23 +1132,24 @@ class Editor {
   // ---- printer ----
   status(msg, kind = 'info') { const s = $('status'); s.textContent = msg; s.className = 'status ' + kind; }
   async connect() {
-    if (!navigator.usb) return this.status('WebUSB unavailable. Use Chrome/Edge over http://localhost.', 'error');
+    if (!navigator.usb) return this.status('This browser can’t reach USB devices. Open this page in Chrome or Edge.', 'error');
     try {
       const info = await this.printer.request();
-      this.status('Connected: ' + info.product, 'ok');
-      $('print').disabled = false; $('connect').textContent = 'Reconnect';
-    } catch (e) { this.status('Connect failed: ' + e.message, 'error'); }
+      this.onConnected(info);
+    } catch (e) {
+      if (/No device selected/i.test(e.message)) return this.status('No printer chosen. Click Connect printer and pick QL-700 in the list. Not listed? See Setup help.', 'info');
+      this.status(`Couldn’t connect: ${e.message}. Check the printer is on, Editor Lite is off, and (Windows) the WinUSB driver is installed — see Setup help.`, 'error');
+    }
   }
   async print() {
-    if (!this.printer.connected) return this.status('Not connected.', 'error');
+    if (!this.printer.connected) return this.status('Connect the printer first (top right).', 'error');
     try {
-      this.status('Rendering…', 'info');
+      this.status('Preparing the label…', 'info');
       const pages = this.doc.toPages();
-      const noun = pages.length > 1 ? `${pages.length} segments (cut between)` : '1 label';
-      this.status(`Printing ${noun}…`, 'info');
+      this.status(pages.length > 1 ? `Printing ${pages.length} pieces…` : 'Printing…', 'info');
       await this.printer.print(pages, { mediaKey: this.doc.mediaKey });
-      this.status('Sent to printer.', 'ok');
-    } catch (e) { this.status('Print failed: ' + e.message, 'error'); }
+      this.status(pages.length > 1 ? `Sent ${pages.length} pieces to the printer.` : 'Sent to the printer.', 'ok');
+    } catch (e) { this.status(`Couldn’t print: ${e.message}. If the printer’s light is flashing red, check the tape matches the loaded roll.`, 'error'); }
   }
 
   // ---- menu dispatch ----
@@ -984,12 +1170,15 @@ class Editor {
       case 'delete':
         if (this.selId) { this.withUndo(() => { this.doc.remove(this.selId); this.selId = null; }); this.render(); this.renderPanels(); }
         return;
-      case 'toggle-grid': this.view.grid = !this.view.grid; $('grid-on').checked = this.view.grid; return this.render();
-      case 'toggle-snap-grid': this.view.snapGrid = !this.view.snapGrid; $('snap-grid').checked = this.view.snapGrid; return;
-      case 'toggle-snap-guides': this.view.snapGuides = !this.view.snapGuides; $('snap-guides').checked = this.view.snapGuides; return;
+      case 'toggle-grid': this.view.grid = !this.view.grid; $('grid-on').checked = this.view.grid; this.syncViewMenu(); return this.render();
+      case 'toggle-snap-grid': this.view.snapGrid = !this.view.snapGrid; $('snap-grid').checked = this.view.snapGrid; return this.syncViewMenu();
+      case 'toggle-snap-guides': this.view.snapGuides = !this.view.snapGuides; $('snap-guides').checked = this.view.snapGuides; return this.syncViewMenu();
+      case 'toggle-theme': return this.setTheme(this.theme === 'dark' ? 'light' : 'dark');
       case 'zoom-in': return this.setZoom(this.zoom * 1.25);
       case 'zoom-out': return this.setZoom(this.zoom / 1.25);
       case 'zoom-fit': return this.fit();
+      case 'help': return $('help').classList.remove('hidden');
+      case 'roll': return this.openRollPicker();
       case 'about': return $('about').classList.remove('hidden');
       case 'home': location.href = './'; return;
     }
@@ -1004,9 +1193,9 @@ class Editor {
       row.className = 'lfile' + (l.id === this.activeId ? ' active' : '');
       const isTpl = l.doc.variables().length > 0;
       row.innerHTML = `<input type="checkbox" class="lchk" ${l.checked ? 'checked' : ''}>
-        <span class="lname">${escapeHtml(l.name)}${isTpl ? ' <span class="tpl-badge" title="template">T</span>' : ''}</span>
-        <button class="lren mini" title="Rename">✎</button>
-        <button class="ldel mini" title="Delete">🗑</button>`;
+        <span class="lname">${escapeHtml(l.name)}${isTpl ? ' <span class="tpl-badge" title="Uses {{variables}} — fill them in under File → Template data">T</span>' : ''}</span>
+        <button class="lren mini" title="Rename label">✎</button>
+        <button class="ldel mini" title="Delete label">🗑</button>`;
       row.querySelector('.lname').addEventListener('click', () => this.switchTo(l.id));
       row.querySelector('.lchk').addEventListener('change', (e) => { l.checked = e.target.checked; });
       row.querySelector('.ldel').addEventListener('click', () => this.deleteLabel(l.id));
@@ -1025,8 +1214,7 @@ class Editor {
     this.commitChange();
     this.activeId = id;
     this.selId = this.selCut = this.selGuide = null;
-    $('media').value = String(this.doc.mediaKey);
-    $('orientation').value = this.doc.orientation;
+    this.syncToolbar();
     this.fit(); this.renderPanels(); this.renderFilePicker(); this.updateHistBtns();
   }
   newLabel() {
@@ -1035,13 +1223,13 @@ class Editor {
     this.labels.push(e); this.saveSoon(); this.switchTo(e.id);
   }
   deleteLabel(id) {
-    if (this.labels.length <= 1) return this.status('Cannot delete the only label.', 'error');
+    if (this.labels.length <= 1) return this.status('Keep at least one label. Add a new one before deleting this.', 'error');
     const i = this.labels.findIndex((l) => l.id === id);
     this.labels.splice(i, 1);
     if (this.activeId === id) {
       this.activeId = this.labels[Math.max(0, i - 1)].id;
       this.selId = this.selCut = this.selGuide = null;
-      $('media').value = String(this.doc.mediaKey); $('orientation').value = this.doc.orientation;
+      this.syncToolbar();
       this.fit(); this.renderPanels(); this.updateHistBtns();
     }
     this.renderFilePicker(); this.saveSoon();
@@ -1061,8 +1249,7 @@ class Editor {
       this.activeId = this.labels[0].id;
       const first = this.doc.elements[0];
       this.selId = first ? first.id : null;
-      $('media').value = String(this.doc.mediaKey);
-      $('orientation').value = this.doc.orientation;
+      this.syncToolbar();
       return true;
     } catch (e) { return false; }
   }
@@ -1079,12 +1266,12 @@ class Editor {
   }
   exportProject() {
     this.download('label-project.json', this.serializeWorkspace());
-    this.status('Exported project (' + this.labels.length + ' labels).', 'ok');
+    this.status(`Exported all ${this.labels.length} labels to a file.`, 'ok');
   }
   importFile(file) {
     if (!file) return;
     const r = new FileReader();
-    r.onload = () => { try { this.importObject(JSON.parse(r.result)); } catch (e) { this.status('Import failed: ' + e.message, 'error'); } };
+    r.onload = () => { try { this.importObject(JSON.parse(r.result)); } catch (e) { this.status('Couldn’t read that file: ' + e.message, 'error'); } };
     r.readAsText(file); $('import-file').value = '';
   }
   importObject(obj) {
@@ -1093,18 +1280,20 @@ class Editor {
     if (obj.labels) for (const l of obj.labels) add(l.name, l.doc);
     else if (obj.label) add(obj.label.name, obj.label.doc);
     else if (obj.doc || obj.elements) add(obj.name, obj.doc || obj);
-    else return this.status('Unrecognized file format.', 'error');
+    else return this.status('That isn’t a label file from this app. Use a file made with File → Export.', 'error');
     this.saveSoon(); this.renderFilePicker();
     if (added.length) { this.switchTo(added[0].id); this.status(`Imported ${added.length} label(s).`, 'ok'); }
   }
 
   // Shipping PDFs: one label per file, sender + receiver as two cut-separated segments.
+  // Behind FEATURES.shippingPdf (js/config.js); the parser module loads on first use.
   async importPdfs(files) {
     $('import-pdf-file').value = '';
     if (!files.length) return;
     this.commitChange();
     const added = [], failed = [];
-    this.status(`Reading ${files.length} PDF(s)…`, 'info');
+    this.status(files.length > 1 ? `Reading ${files.length} PDFs…` : 'Reading the PDF…', 'info');
+    const { parseShippingPdf, buildAddressLabelDoc } = await import('./pdfimport.js');
     for (const f of files) {
       try {
         const blocks = await parseShippingPdf(f);
@@ -1127,7 +1316,7 @@ class Editor {
     $('tpl-table').closest('.tpl-table-wrap').classList.toggle('hidden', free);
     $('tpl-text').classList.toggle('hidden', !free);
     $('tpl-add-row').classList.toggle('hidden', free);
-    $('tpl-free').textContent = free ? 'Table view' : 'Free edit';
+    $('tpl-free').textContent = free ? 'Back to table' : 'Edit as text';
     $('tpl-free').disabled = !hasVars;
   }
   tplToggleFree() {
@@ -1136,7 +1325,7 @@ class Editor {
     if (this.tplFree) {
       $('tpl-text').value = this.datasetToText();
       const vars = this.doc.variables();
-      $('tpl-info').innerHTML = `Free edit — one row per line, columns in order: <code>${vars.map(escapeHtml).join(' | ')}</code>. Separate cells with <code>|</code>.`;
+      $('tpl-info').innerHTML = `One label per line. Separate the values with <code>|</code>, in this order: <code>${vars.map(escapeHtml).join(' | ')}</code>`;
     } else {
       this.textToDataset($('tpl-text').value);
       this.renderTplTable();
@@ -1167,10 +1356,10 @@ class Editor {
     const vars = this.doc.variables();
     const info = $('tpl-info'), table = $('tpl-table');
     if (!vars.length) {
-      info.innerHTML = 'This label has no template variables. Add <code>{{name}}</code>-style tokens to a text element, then reopen this dialog.';
+      info.innerHTML = 'This label has no variables yet. Type a placeholder such as <code>{{name}}</code> into a text layer, then come back here to fill in one row per label.';
       table.innerHTML = ''; $('tpl-print').disabled = true; $('tpl-add-row').disabled = true; return;
     }
-    info.innerHTML = `Variables: ${vars.map((v) => `<code>{{${escapeHtml(v)}}}</code>`).join(' ')} &nbsp;·&nbsp; one row = one printed label`;
+    info.innerHTML = `Each row prints one label. Untick a row to skip it. Variables: ${vars.map((v) => `<code>{{${escapeHtml(v)}}}</code>`).join(' ')}`;
     $('tpl-print').disabled = false; $('tpl-add-row').disabled = false;
     const ds = this.doc.dataset;
     if (!ds.length) ds.push({});
@@ -1180,7 +1369,7 @@ class Editor {
       const on = row._print !== false;
       html += `<tr class="${on ? '' : 'off'}"><td class="pr"><input type="checkbox" class="rowprint" data-r="${i}" ${on ? 'checked' : ''}></td><td class="rn">${i + 1}</td>`
         + vars.map((v) => `<td><input data-r="${i}" data-v="${escapeHtml(v)}" value="${escapeHtml(row[v] || '')}"></td>`).join('')
-        + `<td><button class="mini rowdel" data-r="${i}">🗑</button></td></tr>`;
+        + `<td><button class="mini rowdel" data-r="${i}" title="Remove row">🗑</button></td></tr>`;
     });
     html += '</tbody>';
     table.innerHTML = html;
@@ -1211,10 +1400,10 @@ class Editor {
     return t.toDataURL('image/png');
   }
   printTemplate() {
-    if (!this.printer.connected) return this.status('Not connected.', 'error');
+    if (!this.printer.connected) return this.status('Connect the printer first (top right).', 'error');
     if (this.tplFree) this.textToDataset($('tpl-text').value); // apply any pending free-text edits
     const rows = this.printableRows(this.doc);
-    if (!rows.length) return this.status('No printable rows (tick a row and fill in a value).', 'error');
+    if (!rows.length) return this.status('Nothing to print yet. Tick at least one row and fill in a value.', 'error');
     const jobs = rows.map((r, i) => ({ name: this.rowName(this.doc, r, i), pages: this.doc.toPagesVars(r), preview: this.thumb(this.doc.renderPreviewVars(r)) }));
     this.closeModal();
     this.startQueue(jobs, this.doc.mediaKey);
@@ -1222,11 +1411,11 @@ class Editor {
 
   // ---- print selected labels ----
   printSelected() {
-    if (!this.printer.connected) return this.status('Not connected.', 'error');
+    if (!this.printer.connected) return this.status('Connect the printer first (top right).', 'error');
     const sel = this.labels.filter((l) => l.checked);
-    if (!sel.length) return this.status('No labels checked in the picker.', 'error');
+    if (!sel.length) return this.status('Tick the labels you want to print in the list on the left, then try again.', 'error');
     const media = sel[0].doc.mediaKey;
-    if (sel.some((l) => l.doc.mediaKey !== media)) return this.status('Selected labels use different tape widths — print them separately.', 'error');
+    if (sel.some((l) => l.doc.mediaKey !== media)) return this.status('The ticked labels use different tapes. Print the ones for one tape, swap the roll, then print the rest.', 'error');
     const jobs = [];
     for (const l of sel) {
       const rows = this.printableRows(l.doc);
@@ -1253,32 +1442,32 @@ class Editor {
     const total = q.jobs.length, printed = q.jobs.filter((j) => j.printed).length;
     const allDone = printed >= total;
     const cur = q.jobs[q.cur];
-    $('pq-progress').textContent = allDone ? `All ${total} labels printed.` : `${printed} of ${total} printed — selected: “${cur.name}”`;
+    $('pq-progress').textContent = allDone ? `All ${total} labels printed.` : `${printed} of ${total} printed. Next up: “${cur.name}”`;
     const prev = $('pq-preview');
     if (cur && cur.preview) { prev.src = cur.preview; prev.style.display = ''; } else { prev.removeAttribute('src'); prev.style.display = 'none'; }
     $('pq-list').innerHTML = q.jobs.map((j, i) => {
       const state = j.printed ? '✓' : (i === q.cur ? '▶' : '·');
       const cls = (j.printed ? 'done ' : '') + (i === q.cur ? 'cur' : '');
       const th = j.preview ? `<img class="pq-thumb" src="${j.preview}">` : '';
-      return `<div class="pq-item ${cls}" data-i="${i}"><span class="pq-st">${state}</span>${th}<span class="pq-nm">${escapeHtml(j.name)}</span><span class="pq-pieces">${j.pages.length} pc</span></div>`;
+      return `<div class="pq-item ${cls}" data-i="${i}"><span class="pq-st">${state}</span>${th}<span class="pq-nm">${escapeHtml(j.name)}</span><span class="pq-pieces">${j.pages.length > 1 ? j.pages.length + ' pieces' : ''}</span></div>`;
     }).join('');
     $('pq-list').querySelectorAll('.pq-item').forEach((el) => el.addEventListener('click', () => this.qSelect(+el.dataset.i)));
     $('pq-next').disabled = q.busy || (cur && cur.printed && allDone);
     $('pq-auto').disabled = q.busy || allDone;
-    $('pq-next').textContent = cur ? `Print ▶ “${cur.name}”` : 'Print ▶';
-    $('pq-cancel').textContent = allDone ? 'Close' : (q.running ? 'Stop' : 'Cancel');
+    $('pq-next').textContent = cur ? `Print “${cur.name}”` : 'Print next';
+    $('pq-cancel').textContent = allDone ? 'Done' : (q.running ? 'Stop after this one' : 'Close');
   }
   async qNext() {
     const q = this.queue; if (!q || q.busy) return;
     const job = q.jobs[q.cur]; if (!job) return;
     q.busy = true; this.renderQueue();
-    this.status(`Printing: ${job.name}…`, 'info');
+    this.status(`Printing “${job.name}”…`, 'info');
     try {
       await this.printer.print(job.pages, { mediaKey: q.mediaKey });
       job.printed = true;
       q.cur = this.nextUnprinted(q, q.cur); // jump to next not-yet-printed
       const done = q.jobs.filter((j) => j.printed).length;
-      this.status(done >= q.jobs.length ? 'All labels printed.' : `Printed ${done}/${q.jobs.length}.`, 'ok');
+      this.status(done >= q.jobs.length ? 'All labels printed.' : `Printed ${done} of ${q.jobs.length}.`, 'ok');
     } catch (e) { this.status('Print failed: ' + e.message, 'error'); }
     q.busy = false; this.renderQueue();
   }

@@ -10,16 +10,40 @@ export const BYTES_PER_ROW = PINS / 8; // 90
 export const DPI = 300;
 export const MM_TO_DOTS = DPI / 25.4; // ≈ 11.81 dots/mm
 
-// Media geometry (string keys). `printable` = across-tape dots; left_pad = 720 -
-// printable - offsetR. Continuous tapes have lengthMm 0 (free length). Die-cut
-// labels have a fixed printable length (lengthDots) and mediaType 0x0B — sending
-// continuous commands to a die-cut roll makes the QL-700 flash its red LED.
-// Values verified against brother_ql labels.py.
+// Media geometry (string keys) for every DK roll the QL-700 accepts (12–62 mm).
+//   printable  = across-tape dots;  offsetR = dots of padding on the pin-0 side
+//                (brother_ql's right_margin_dots — it flips the image before packing,
+//                so its "right" margin lands on the pin-0 edge, same as our left pad).
+//   lengthDots = printable feed length for die-cut labels (0 = continuous, free length).
+//   Continuous = mediaType 0x0A; die-cut (incl. round) = 0x0B — sending continuous
+//   commands to a die-cut roll makes the QL-700 flash its red LED.
+//   shape 'round' labels are masked to a circle when rendered.
+// Dot values verified against brother_ql labels.py; DK part numbers from Brother's
+// QL-700 supplies list. Film/clear/yellow 62 mm rolls (DK-22212/22113/22606) and
+// 29 mm film (DK-22211) use the paper entries — same geometry.
+const cont = (widthMm, printable, offsetR, dk, note) => ({ label: `${widthMm}mm continuous`, dk, note, kind: 'continuous', shape: 'rect', mediaType: 0x0a, widthMm, lengthMm: 0, printable, offsetR, feedMargin: 35, lengthDots: 0 });
+const die  = (widthMm, lengthMm, printable, lengthDots, offsetR, dk, note) => ({ label: `${widthMm}×${lengthMm}mm ${note} (die-cut)`, dk, note, kind: 'diecut', shape: 'rect', mediaType: 0x0b, widthMm, lengthMm, printable, offsetR, feedMargin: 0, lengthDots });
+const round = (dMm, printable, offsetR, dk, note) => ({ label: `${dMm}mm round${note ? ' ' + note : ''} (die-cut)`, dk, note, kind: 'diecut', shape: 'round', mediaType: 0x0b, widthMm: dMm, lengthMm: dMm, printable, offsetR, feedMargin: 0, lengthDots: printable });
 export const MEDIA = {
-  '62':    { label: '62mm continuous',        kind: 'continuous', mediaType: 0x0a, widthMm: 62, lengthMm: 0,  printable: 696, offsetR: 12, feedMargin: 35, lengthDots: 0 },
-  '29':    { label: '29mm continuous',        kind: 'continuous', mediaType: 0x0a, widthMm: 29, lengthMm: 0,  printable: 306, offsetR: 6,  feedMargin: 35, lengthDots: 0 },
-  '29x90': { label: '29×90mm address (die-cut)', kind: 'diecut', mediaType: 0x0b, widthMm: 29, lengthMm: 90, printable: 306, offsetR: 6,  feedMargin: 0,  lengthDots: 991 },
-  '62x100':{ label: '62×100mm shipping (die-cut)', kind: 'diecut', mediaType: 0x0b, widthMm: 62, lengthMm: 100, printable: 696, offsetR: 12, feedMargin: 0, lengthDots: 1109 },
+  // continuous tapes
+  '62':     cont(62, 696, 12, 'DK-22205', 'paper'),
+  '54':     cont(54, 590, 0,  'DK-N55224', 'non-adhesive paper'),
+  '50':     cont(50, 554, 12, 'DK-22223', 'paper'),
+  '38':     cont(38, 413, 12, 'DK-22225', 'paper'),
+  '29':     cont(29, 306, 6,  'DK-22210', 'paper'),
+  '12':     cont(12, 106, 29, 'DK-22214', 'paper'),
+  // die-cut labels
+  '62x100': die(62, 100, 696, 1109, 12, 'DK-11202', 'shipping'),
+  '62x29':  die(62, 29,  696, 271,  12, 'DK-11209', 'small address'),
+  '38x90':  die(38, 90,  413, 991,  12, 'DK-11208', 'large address'),
+  '29x90':  die(29, 90,  306, 991,  6,  'DK-11201', 'address'),
+  '23x23':  die(23, 23,  202, 202,  42, 'DK-11221', 'square'),
+  '17x87':  die(17, 87,  165, 956,  0,  'DK-11203', 'file folder'),
+  '17x54':  die(17, 54,  165, 566,  0,  'DK-11204', 'multi-purpose'),
+  // round die-cut labels
+  'd58':    round(58, 618, 51,  'DK-11207', 'CD/DVD'),
+  'd24':    round(24, 236, 42,  'DK-11218', ''),
+  'd12':    round(12, 94,  113, 'DK-11219', ''),
 };
 
 // normalize legacy numeric/unknown keys to a valid string key

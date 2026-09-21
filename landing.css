@@ -57,11 +57,9 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 28px; }
 .sec > h2 { font-size: clamp(22px, 2.6vw, 28px); font-weight: 600; letter-spacing: -0.015em; margin: 0 0 18px; }
 .sec > p { max-width: var(--measure); margin: 0 0 22px; color: var(--ink-2); }
 .sec > p i, .sec > p b { color: var(--ink); }
-.once { font-size: 0.6em; font-weight: 500; color: var(--ink-3); margin-left: 8px; vertical-align: middle; }
 
 /* hero: text on the left, the printed strip on the right */
 .hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(32px, 6vw, 80px); align-items: center; padding: clamp(32px, 6vw, 64px) 0 12px; }
-.hero h1 { font-size: clamp(30px, 3.8vw, 44px); line-height: 1.12; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 20px; max-width: 18ch; }
 .hero p { color: var(--ink-2); margin: 0 0 22px; max-width: 46ch; }
 .cta { display: flex; align-items: center; flex-wrap: wrap; }
 .notice { font-size: 15px; padding: 10px 14px; background: var(--accent-soft); border-radius: 6px; color: var(--ink); }
@@ -73,20 +71,35 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 28px; }
 .cutmark::before { content: "✂"; position: absolute; top: -22px; left: -8px; color: var(--accent); font-size: 14px; background: var(--paper); padding: 0 3px; }
 .strip figcaption { font-size: 14px; color: var(--ink-3); margin-top: 14px; }
 
-/* annotated editor screenshot */
-.annot { position: relative; margin: 0; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+/* annotated editor screenshot: numbered pins with hover / focus / tap tooltips */
+.annot { position: relative; margin: 0; }
+.annot > img { border: 1px solid var(--rule); border-radius: 6px; }
 .pin {
-  position: absolute; transform: translate(-50%, -50%); width: 26px; height: 26px; border-radius: 50%;
-  background: var(--accent); color: #fff; font-weight: 600; font-size: 14px; display: grid; place-items: center;
-  box-shadow: 0 0 0 3px var(--paper);
+  position: absolute; transform: translate(-50%, -50%); width: 26px; height: 26px; border-radius: 50%; border: 0; padding: 0;
+  background: var(--accent); color: #fff; font: 600 14px/1 var(--sans); display: grid; place-items: center; cursor: pointer;
+  box-shadow: 0 0 0 3px var(--paper); transition: box-shadow .15s cubic-bezier(.22,1,.36,1);
 }
-.key { counter-reset: k; list-style: none; padding: 0; margin: 26px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 40px; }
-.key li { counter-increment: k; position: relative; padding-left: 36px; color: var(--ink-2); font-size: 15.5px; }
-.key li b, .key li i { color: var(--ink); }
-.key li::before {
-  content: counter(k); position: absolute; left: 0; top: 2px; width: 22px; height: 22px; border-radius: 50%;
-  background: var(--accent); color: #fff; font-size: 12px; font-weight: 600; display: grid; place-items: center;
+.pin:hover, .pin:focus-visible, .pin.open { box-shadow: 0 0 0 3px var(--paper), 0 0 0 5px var(--accent); z-index: 3; }
+.pin:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.tip {
+  position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%);
+  width: max-content; max-width: min(280px, 78vw); padding: 10px 13px; border-radius: 8px; text-align: left;
+  background: var(--ink); color: var(--paper); font: 400 14px/1.45 var(--sans); cursor: default;
+  box-shadow: 0 10px 30px -10px oklch(20% 0.02 60 / 0.6);
+  opacity: 0; visibility: hidden; transition: opacity .12s ease-out, visibility .12s;
 }
+.tip b { display: block; color: #fff; font-weight: 600; margin-bottom: 3px; }
+.tip i { color: #fff; }
+.tip kbd { background: oklch(35% 0.012 60); color: #fff; border: 0; }
+.tip::before { content: ""; position: absolute; bottom: 100%; left: 50%; margin-left: -6px; border: 6px solid transparent; border-bottom-color: var(--ink); }
+.pin:hover .tip, .pin:focus-visible .tip, .pin.open .tip { opacity: 1; visibility: visible; }
+/* anchor the bubble to the pin's edge near the screenshot's sides, or open upward near the bottom */
+.pin.tip-left .tip { left: -8px; transform: none; }
+.pin.tip-left .tip::before { left: 14px; margin-left: 0; }
+.pin.tip-right .tip { left: auto; right: -8px; transform: none; }
+.pin.tip-right .tip::before { left: auto; right: 14px; margin-left: 0; }
+.pin.tip-up .tip { top: auto; bottom: calc(100% + 10px); }
+.pin.tip-up .tip::before { bottom: auto; top: 100%; border-bottom-color: transparent; border-top-color: var(--ink); }
 
 /* numbered steps with inline crops */
 .steps { list-style: none; padding: 0; margin: 0; counter-reset: s; max-width: 760px; }
@@ -110,11 +123,19 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 28px; }
 .setup ol li { margin: 4px 0; }
 .setup .note { display: block; margin-top: 8px; padding: 8px 12px; background: var(--accent-soft); border-radius: 6px; font-size: 15px; color: var(--ink); }
 
+/* reset */
+#revert ol { max-width: var(--measure); padding-left: 22px; margin: 0 0 18px; color: var(--ink-2); }
+#revert li { margin: 4px 0; }
+#revert li b, #revert li i { color: var(--ink); }
+
 /* problems */
 dl { display: grid; grid-template-columns: max-content 1fr; gap: 14px 32px; max-width: 860px; margin: 0; }
 dt { font-weight: 600; }
 dd { margin: 0; color: var(--ink-2); }
-dd i { color: var(--ink); }
+dd i, dd em { color: var(--ink); }
+dd em { font-style: italic; }
+dd ol { margin: 0; padding-left: 20px; }
+dd li { margin: 2px 0; }
 
 .foot {
   display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
@@ -124,11 +145,10 @@ dd i { color: var(--ink); }
 
 @media (max-width: 860px) {
   .hero { grid-template-columns: 1fr; }
-  .key { grid-template-columns: 1fr; }
   .pair { grid-template-columns: 1fr; }
   dl { grid-template-columns: 1fr; gap: 4px 0; }
   dd { margin-bottom: 12px; }
   .top nav a:not(.btn) { display: none; }
-  .pin { width: 20px; height: 20px; font-size: 11px; }
+  .pin { width: 22px; height: 22px; font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn { transition: none; } }

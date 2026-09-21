@@ -97,7 +97,7 @@ export function makeShape(kind = 'rect') {
     rotation: 0,
     shapeKind: kind === 'square' ? 'rect' : kind, // 'rect' | 'roundrect' | 'circle'
     cornerRadius: kind === 'roundrect' ? 28 : 0,
-    fill: { type: 'solid', density: 100 },        // 'none' | 'solid' | 'texture'
+    fill: { type: 'solid', density: 100 },        // 'none' | 'solid' | 'white' | 'texture'
     stroke: { width: 0 },
     _bbox: null,
   };
@@ -242,8 +242,9 @@ export class LabelDoc {
   }
   _drawShape(ctx, el) {
     const fill = el.fill || { type: 'solid' };
-    if (fill.type === 'solid') {
-      this._shapePath(ctx, el); ctx.fillStyle = '#000'; ctx.fill();
+    if (fill.type === 'solid' || fill.type === 'white') {
+      // 'white' knocks out whatever is drawn below (e.g. a window in a black block or over a dithered image)
+      this._shapePath(ctx, el); ctx.fillStyle = fill.type === 'white' ? '#fff' : '#000'; ctx.fill();
     } else if (fill.type === 'texture') {
       ctx.save(); this._shapePath(ctx, el); ctx.clip();
       const pat = fillTexture(el.wDots, el.hDots, Math.max(0, Math.min(1, (fill.density ?? 50) / 100)));
@@ -280,6 +281,14 @@ export class LabelDoc {
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, w, h);
     for (const el of this.elements) this.drawElement(ctx, el);
+    if (this.media.shape === 'round') {
+      // round die-cut label: blank everything outside the circle so nothing prints on the liner
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0, 0, w, h);
+      ctx.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff'; ctx.fill('evenodd');
+      ctx.restore();
+    }
     return c;
   }
 
