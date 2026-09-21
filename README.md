@@ -2,7 +2,7 @@
 
 A label editor & print tool for the Brother QL-700 that replaces the need for Brother's awful built-in P-touch software. Prints directly to the device over WebUSB with WinUSB drivers. Supports text, symbols, images and shapes, cut lines, `{{variable}}` templates with batch printing.
 
-Use the tool online: **https://fipppi.github.io/ql700-printer/**.
+Use the tool online: **https://ql700.fippi.io**.
 
 ## Prerequisites
 
